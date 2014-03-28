@@ -209,7 +209,7 @@ elseif (XCODE)
     if (NOT URHO3D_64BIT)
         set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT))
     endif ()
-    set (CMAKE_OSX_SYSROOT macosx)	# Set Base SDK to "Latest OS X"
+    set (CMAKE_OSX_SYSROOT macosx)  # Set Base SDK to "Latest OS X"
     if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
         # If not set, set to current running build system OS version by default
         execute_process (COMMAND sw_vers -productVersion OUTPUT_VARIABLE CURRENT_OSX_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)

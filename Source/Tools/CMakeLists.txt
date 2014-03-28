@@ -33,8 +33,8 @@ add_subdirectory (Urho3DPlayer)
 # Do not build tools for iOS and Android regardless of the URHO3D_TOOLS build option
 if (NOT IOS AND NOT ANDROID AND URHO3D_TOOLS)
     # Urho3D tools
-    add_subdirectory (AssetImporter)
-    add_subdirectory (OgreImporter)
+    #add_subdirectory (AssetImporter)
+    #add_subdirectory (OgreImporter)
     add_subdirectory (PackageTool)
     add_subdirectory (RampGenerator)
     if (URHO3D_ANGELSCRIPT)
