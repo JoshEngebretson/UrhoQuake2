@@ -443,9 +443,9 @@ void CL_ParseMuzzleFlash2 (void)
 
 	// locate the origin
 	AngleVectors (cl_entities[ent].current.angles, forward, right, NULL);
-	origin[0] = cl_entities[ent].current.origin[0] + forward[0] * monster_flash_offset[flash_number][0] + right[0] * monster_flash_offset[flash_number][1];
-	origin[1] = cl_entities[ent].current.origin[1] + forward[1] * monster_flash_offset[flash_number][0] + right[1] * monster_flash_offset[flash_number][1];
-	origin[2] = cl_entities[ent].current.origin[2] + forward[2] * monster_flash_offset[flash_number][0] + right[2] * monster_flash_offset[flash_number][1] + monster_flash_offset[flash_number][2];
+    origin[0] = cl_entities[ent].current.origin[0] + forward[0]; //* monster_flash_offset[flash_number][0] + right[0] * monster_flash_offset[flash_number][1];
+    origin[1] = cl_entities[ent].current.origin[1] + forward[1]; //* monster_flash_offset[flash_number][0] + right[1] * monster_flash_offset[flash_number][1];
+    origin[2] = cl_entities[ent].current.origin[2] + forward[2]; //* monster_flash_offset[flash_number][0] + right[2] * monster_flash_offset[flash_number][1] + monster_flash_offset[flash_number][2];
 
 	dl = CL_AllocDlight (ent);
 	VectorCopy (origin,  dl->origin);

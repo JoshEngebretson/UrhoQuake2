@@ -23,13 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <errno.h>
-#include <sys/filio.h>
 
 #ifdef NeXT
 #include <libc.h>
@@ -299,13 +299,17 @@ qboolean	NET_GetPacket (netsrc_t sock, netadr_t *net_from, sizebuf_t *net_messag
 		fromlen = sizeof(from);
 		ret = recvfrom (net_socket, net_message->data, net_message->maxsize
 			, 0, (struct sockaddr *)&from, &fromlen);
+
+		SockadrToNetadr (&from, net_from);
+
 		if (ret == -1)
 		{
 			err = errno;
 
 			if (err == EWOULDBLOCK || err == ECONNREFUSED)
 				continue;
-			Com_Printf ("NET_GetPacket: %s", NET_ErrorString());
+			Com_Printf ("NET_GetPacket: %s from %s\n", NET_ErrorString(),
+						NET_AdrToString(*net_from));
 			continue;
 		}
 
@@ -316,7 +320,6 @@ qboolean	NET_GetPacket (netsrc_t sock, netadr_t *net_from, sizebuf_t *net_messag
 		}
 
 		net_message->cursize = ret;
-		SockadrToNetadr (&from, net_from);
 		return true;
 	}
 
@@ -369,7 +372,8 @@ void NET_SendPacket (netsrc_t sock, int length, void *data, netadr_t to)
 	ret = sendto (net_socket, data, length, 0, (struct sockaddr *)&addr, sizeof(addr) );
 	if (ret == -1)
 	{
-		Com_Printf ("NET_SendPacket ERROR: %i\n", NET_ErrorString());
+		Com_Printf ("NET_SendPacket ERROR: %s to %s\n", NET_ErrorString(),
+				NET_AdrToString (to));
 	}
 }
 
@@ -469,7 +473,7 @@ int NET_Socket (char *net_interface, int port)
 
 	if ((newsocket = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	{
-		Com_Printf ("ERROR: UDP_OpenSocket: socket:", NET_ErrorString());
+		Com_Printf ("ERROR: UDP_OpenSocket: socket: %s", NET_ErrorString());
 		return 0;
 	}
 
@@ -487,7 +491,7 @@ int NET_Socket (char *net_interface, int port)
 		return 0;
 	}
 
-	if (!net_interface || !net_interface[0] || !stricmp(net_interface, "localhost"))
+    if (!net_interface || !net_interface[0] || !strcasecmp(net_interface, "localhost"))
 		address.sin_addr.s_addr = INADDR_ANY;
 	else
 		NET_StringToSockaddr (net_interface, (struct sockaddr *)&address);
@@ -546,7 +550,7 @@ void NET_Sleep(int msec)
 		return; // we're not a server, just run full speed
 
 	FD_ZERO(&fdset);
-	if (stdin_active)
+    if (false)//stdin_active)
 		FD_SET(0, &fdset); // stdin is processed too
 	FD_SET(ip_sockets[NS_SERVER], &fdset); // network socket
 	timeout.tv_sec = msec/1000;

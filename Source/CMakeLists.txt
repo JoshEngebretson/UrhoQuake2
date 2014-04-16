@@ -160,5 +160,7 @@ if (NOT IOS AND NOT ANDROID AND URHO3D_EXTRAS)
     add_subdirectory (Extras)
 endif ()
 
+add_subdirectory (ThunderBeast)
+
 # Urho3D documentation
 add_subdirectory (../Docs ${PROJECT_BINARY_DIR}/Docs)
