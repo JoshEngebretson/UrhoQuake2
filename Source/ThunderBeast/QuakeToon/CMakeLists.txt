@@ -1,5 +1,12 @@
 
-add_definitions(-DC_ONLY)
+# Set project name
+project (QuakeToon)
+
+# Find Urho3D library
+find_package (Urho3D REQUIRED)
+include_directories (${URHO3D_INCLUDE_DIRS})
+
+add_definitions(-DC_ONLY -DGAME_HARD_LINKED)
 
 set ( CLIENT_SOURCE_FILES client/cl_cin.c
                           client/cl_inv.c
@@ -61,8 +68,80 @@ set ( COMMON_SOURCE_FILES qcommon/cmd.c
                           qcommon/qcommon.h
                           qcommon/qfiles.h )
 
-set ( SHARED_SOURCE_FILES game/q_shared.c
-                          game/q_shared.h )
+set ( GAME_SOURCE_FILES game/g_ai.c
+                        game/g_save.c
+                        game/m_boss2.c
+                        game/m_gladiator.c
+                        game/m_supertank.c
+                          game/g_chase.c
+                          game/g_spawn.c
+                          game/m_boss3.c
+                          game/m_gunner.c
+                          game/m_tank.c
+                          game/g_cmds.c
+                          game/g_svcmds.c
+                          game/m_boss31.c
+                          game/m_hover.c
+                          game/p_client.c
+                          game/g_combat.c
+                          game/g_target.c
+                          game/m_boss32.c
+                          game/m_infantry.c
+                          game/p_hud.c
+                          game/g_func.c
+                          game/g_trigger.c
+                          game/m_brain.c
+                          game/m_insane.c
+                          game/p_trail.c
+                          game/g_items.c
+                          game/g_turret.c
+                          game/m_chick.c
+                          game/m_medic.c
+                          game/p_view.c
+                          game/g_main.c
+                          game/g_utils.c
+                          game/m_flash.c
+                          game/m_move.c
+                          game/p_weapon.c
+                          game/g_misc.c
+                          game/g_weapon.c
+                          game/m_flipper.c
+                          game/m_mutant.c
+                          game/q_shared.c
+                          game/g_monster.c
+                          game/m_actor.c
+                          game/m_float.c
+                          game/m_parasite.c
+                          game/g_phys.c
+                          game/m_berserk.c
+                          game/m_flyer.c
+                          game/m_soldier.c
+                          game/g_local.h
+                          game/m_boss32.h
+                          game/m_gladiator.h
+                          game/m_mutant.h
+                          game/m_tank.h
+                          game/game.h
+                          game/m_brain.h
+                          game/m_gunner.h
+                          game/m_parasite.h
+                          game/q_shared.h
+                          game/m_actor.h
+                          game/m_chick.h
+                          game/m_hover.h
+                          game/m_player.h
+                          game/m_berserk.h
+                          game/m_flipper.h
+                          game/m_infantry.h
+                          game/m_rider.h
+                          game/m_boss2.h
+                          game/m_float.h
+                          game/m_insane.h
+                          game/m_soldier.h
+                          game/m_boss31.h
+                          game/m_flyer.h
+                          game/m_medic.h
+                          game/m_supertank.h )
 
 # will be replaces
 set (PLATFORM_SOURCE_FILES platform/net_udp.c )
@@ -74,7 +153,9 @@ set (NULL_SOURCE_FILES null/cd_null.c
                        null/in_null.c
                        null/vid_null.c )
 
-set (SOURCE_FILES ${COMMON_SOURCE_FILES} ${SHARED_SOURCE_FILES} ${PLATFORM_SOURCE_FILES} ${CLIENT_SOURCE_FILES} ${SERVER_SOURCE_FILES} ${NULL_SOURCE_FILES})
+set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp )
+
+set (SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES} ${PLATFORM_SOURCE_FILES} ${SYSTEM_SOURCE_FILES} ${CLIENT_SOURCE_FILES} ${SERVER_SOURCE_FILES} ${NULL_SOURCE_FILES})
 
 # Define target name
 set (TARGET_NAME QuakeToon)

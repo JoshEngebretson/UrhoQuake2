@@ -605,6 +605,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	gi.dprintf ("%i entities inhibited\n", inhibit);
 
 #ifdef DEBUG
+    /*
 	i = 1;
 	ent = EDICT_NUM(i);
 	while (i < globals.num_edicts) {
@@ -612,6 +613,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 			Com_DPrintf("Invalid entity %d\n", i);
 		i++, ent++;
 	}
+    */
 #endif
 
 	G_FindTeams ();
