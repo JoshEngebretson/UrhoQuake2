@@ -153,7 +153,7 @@ set (NULL_SOURCE_FILES null/cd_null.c
                        null/in_null.c
                        null/vid_null.c )
 
-set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp )
+set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp system/sys_urho3d.h system/ref_urho3d.cpp system/ref_urho3d.h)
 
 set (SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES} ${PLATFORM_SOURCE_FILES} ${SYSTEM_SOURCE_FILES} ${CLIENT_SOURCE_FILES} ${SERVER_SOURCE_FILES} ${NULL_SOURCE_FILES})
 

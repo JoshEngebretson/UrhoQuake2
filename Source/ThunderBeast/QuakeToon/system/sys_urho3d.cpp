@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "CoreEvents.h"
 
+#include "sys_urho3d.h"
+
+
 
 extern "C" {
 #include "../qcommon/qcommon.h"
@@ -11,6 +14,8 @@ void *GetGameAPI (void *import);
 }
 
 using namespace Urho3D;
+
+Context* Q2System::sContext_ = NULL;
 
 class QuakeToonApp : public Application
 {
@@ -25,6 +30,7 @@ public:
     /// Construct.
     QuakeToonApp(Context* context) : Application(context)
     {
+        Q2System::SetContext(context);
         sInstance_ = this;
         timer_.Reset();
     }
@@ -47,7 +53,7 @@ public:
         engineParameters_["WindowTitle"] = "QuakeToon";
         engineParameters_["LogName"]     = "QuakeToon.log";
         engineParameters_["FullScreen"]  = false;
-        engineParameters_["Headless"]    = true;
+        engineParameters_["Headless"]    = false;
     }
 
     /// Setup after engine initialization. Creates the logo, console & debug HUD.
