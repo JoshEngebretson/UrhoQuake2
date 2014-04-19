@@ -54,8 +54,8 @@ public:
     void Start()
     {
         // todo, define argc and argv as Urho3D also wants command line args
-        int argc = 0;
-        char **argv = NULL;
+        int argc = 3;
+        char *argv[] = {"quake", "+map", "demo1"};
         Qcommon_Init (argc, argv);
 
         // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events
@@ -157,7 +157,7 @@ int Sys_Milliseconds (void)
 
 void Sys_ConsoleOutput (char *string)
 {
-    printf("%s\n", string);
+    printf("%s", string);
 }
 
 void Sys_UnloadGame (void)
