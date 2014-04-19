@@ -153,9 +153,14 @@ set (NULL_SOURCE_FILES null/cd_null.c
                        null/in_null.c
                        null/vid_null.c )
 
-set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp system/sys_urho3d.h system/ref_urho3d.cpp system/ref_urho3d.h)
+set (REFRESH_SOURCE_FILES refresh/ref_urho3d.cpp refresh/ref_urho3d.h refresh/ref_model.c refresh/ref_model.h
+                          refresh/ref_gl.c refresh/ref_gl.h refresh/ref_image.c refresh/ref_image.h refresh/ref_local.h refresh/vid.c)
 
-set (SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES} ${PLATFORM_SOURCE_FILES} ${SYSTEM_SOURCE_FILES} ${CLIENT_SOURCE_FILES} ${SERVER_SOURCE_FILES} ${NULL_SOURCE_FILES})
+set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp system/sys_urho3d.h system/sys_hunk.c)
+
+set (SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES} ${PLATFORM_SOURCE_FILES}
+                  ${SYSTEM_SOURCE_FILES} ${CLIENT_SOURCE_FILES} ${SERVER_SOURCE_FILES}
+                  ${NULL_SOURCE_FILES} ${REFRESH_SOURCE_FILES} )
 
 # Define target name
 set (TARGET_NAME QuakeToon)

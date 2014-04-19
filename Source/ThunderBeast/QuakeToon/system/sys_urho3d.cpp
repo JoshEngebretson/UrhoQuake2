@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "CoreEvents.h"
 
+#include "UI.h"
+#include "Input.h"
+
 #include "sys_urho3d.h"
 
 
@@ -59,6 +62,10 @@ public:
     /// Setup after engine initialization. Creates the logo, console & debug HUD.
     void Start()
     {
+
+        // Enable OS cursor
+        GetSubsystem<Input>()->SetMouseVisible(true);
+
         // todo, define argc and argv as Urho3D also wants command line args
         int argc = 3;
         char *argv[] = {"quake", "+map", "demo1"};
@@ -174,6 +181,8 @@ void *Sys_GetGameAPI (void *parms)
 {
     return GetGameAPI(parms);
 }
+
+
 
 
 

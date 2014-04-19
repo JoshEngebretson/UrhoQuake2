@@ -54,25 +54,6 @@ char *Sys_GetClipboardData( void )
 	return NULL;
 }
 
-void	*Hunk_Begin (int maxsize)
-{
-	return NULL;
-}
-
-void	*Hunk_Alloc (int size)
-{
-	return NULL;
-}
-
-void	Hunk_Free (void *buf)
-{
-}
-
-int		Hunk_End (void)
-{
-	return 0;
-}
-
 void	Sys_Mkdir (char *path)
 {
 }
