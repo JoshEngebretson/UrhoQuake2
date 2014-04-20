@@ -15,6 +15,8 @@ class Q2Renderer: public Object
 
     void HandlePostRenderUpdate(StringHash eventType, VariantMap& eventData);
 
+    void CreateScene();
+
 public:
 
     Q2Renderer(Context* context);

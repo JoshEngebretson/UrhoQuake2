@@ -6,8 +6,10 @@
 #include "Graphics.h"
 #include "Input.h"
 #include "Material.h"
+#include "Technique.h"
 #include "IndexBuffer.h"
 #include "VertexBuffer.h"
+#include "Texture2D.h"
 #include "Geometry.h"
 #include "Model.h"
 #include "Octree.h"
@@ -33,12 +35,80 @@ extern "C" {
 
 using namespace Urho3D;
 
+struct SurfaceMap
+{
+    Material* material_;
+    Vector<msurface_t*> surfaces_;
+};
+
+HashMap<String, Texture2D*> textureLookup;
+HashMap<String, SharedPtr<Material> > materialLookup;
+HashMap<Material*, SurfaceMap*> surfaceMap;
+
+static Texture2D* LoadTexture(Context* context, const String& name)
+{
+    if (!textureLookup.Contains(name))
+    {
+        //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
+        Texture2D* texture = new Texture2D(context);
+        int width = 128;
+        int height = 128;
+
+        texture->SetNumLevels(1);
+        texture->SetSize(width, height, Graphics::GetRGBFormat());
+        SharedArrayPtr<unsigned char> emptyBitmap(new unsigned char[width * height * 3]);
+        unsigned char c = rand() % 128 + 120;
+        memset(emptyBitmap.Get(), c, width * height * 3);
+
+        texture->SetData(0, 0, 0, width, height, emptyBitmap.Get());
+        textureLookup.Insert(MakePair(name, texture));
+    }
+
+    return textureLookup.Find(name)->second_;
+
+}
+
+static Material* LoadMaterial(Context* context, const String& name)
+{
+    if (!materialLookup.Contains(name))
+    {
+        Texture* texture = LoadTexture(context, name);
+
+        ResourceCache* cache = context->GetSubsystem<ResourceCache>();
+        Material* stone = cache->GetResource<Material>("Materials/StoneTiled.xml");
+        SharedPtr<Material> material = stone->Clone();
+        material->SetName(name);
+        material->SetTexture(TU_DIFFUSE, texture);
+        materialLookup.Insert(MakePair(name, material));
+    }
+
+    return materialLookup.Find(name)->second_;
+
+}
+
+static void MapSurface(Context* context, msurface_t* surface)
+{
+    String name(surface->texinfo->image->name);
+    Material* material = LoadMaterial(context, name);
+
+    if (!surfaceMap.Contains(material))
+    {
+        SurfaceMap* map = new SurfaceMap();
+        map->material_ = material;
+        surfaceMap.Insert(MakePair(material, map));
+    }
+
+    surfaceMap.Find(material)->second_->surfaces_.Push(surface);
+
+}
+
+
 Q2Renderer::Q2Renderer(Context* context) : Object(context)
 {
 
 }
 
-void Q2Renderer::InitializeWorldModel()
+void Q2Renderer::CreateScene()
 {
     ResourceCache* cache = GetSubsystem<ResourceCache>();
 
@@ -51,16 +121,177 @@ void Q2Renderer::InitializeWorldModel()
     scene_->CreateComponent<Octree>();
     scene_->CreateComponent<DebugRenderer>();
 
+    Node* zoneNode = scene_->CreateChild("Zone");
+    Zone* zone = zoneNode->CreateComponent<Zone>();
+    // Set same volume as the Octree, set a close bluish fog and some ambient light
+    zone->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
+    zone->SetAmbientColor(Color(.5, .5, .5));
+    zone->SetFogStart(10000);
+    zone->SetFogEnd(10000);
+
+
+    // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
+    // light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
+    // The light will use default settings (white light, no shadows)
+    Node* lightNode = scene_->CreateChild("DirectionalLight");
+    lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
+    Light* light = lightNode->CreateComponent<Light>();
+    light->SetLightType(LIGHT_DIRECTIONAL);
+
+    // Create a scene node for the camera, which we will move around
+    // The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
+    cameraNode_ = scene_->CreateChild("Camera");
+    Camera* camera = cameraNode_->CreateComponent<Camera>();
+    camera->SetFarClip(65000.0f);
+
+    // Set an initial position for the camera scene node above the plane
+    cameraNode_->SetPosition(Vector3(128, 41, -320));
+
+    Renderer* renderer = GetSubsystem<Renderer>();
+
+
+    // Set up a viewport to the Renderer subsystem so that the 3D scene can be seen. We need to define the scene and the camera
+    // at minimum. Additionally we could configure the viewport screen size and the rendering path (eg. forward / deferred) to
+    // use, but now we just use full screen and default render path configured in the engine command line options
+    SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
+    renderer->SetViewport(0, viewport);
+
+
+}
+
+void Q2Renderer::InitializeWorldModel()
+{
+    CreateScene();
+
+    // map surfaces, each unique material will become a geometry
+    // we're going to want to do this by areas eventually
+    msurface_t* surf = r_worldmodel->surfaces;
+    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
+    {
+        MapSurface(context_, surf);
+    }
+
+    Vector<Geometry*> submeshes;
+    Vector<Material*> materials;
+
+    for (HashMap<Material*, SurfaceMap*>::ConstIterator i = surfaceMap.Begin(); i != surfaceMap.End(); ++i)
+    {
+        materials.Push(i->first_);
+
+        SurfaceMap* map = i->second_;
+
+        // count the vertices and indices
+        int numvertices = 0;
+        int numpolys = 0;
+
+        for (unsigned i = 0; i < map->surfaces_.Size(); i++)
+        {
+            msurface_t* surf = map->surfaces_[i];
+            glpoly_t* poly = surf->polys;
+
+            while(poly)
+            {
+                numvertices += poly->numverts;
+                numpolys += poly->numverts - 2;
+                poly = poly->next;
+            }
+        }
+
+        SharedPtr<IndexBuffer> ib;
+        SharedPtr<VertexBuffer> vb;
+
+        vb = new VertexBuffer(context_);
+        ib = new IndexBuffer(context_);
+
+        // going to need normal
+        unsigned elementMask = MASK_POSITION  | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
+
+        vb->SetSize(numvertices, elementMask);
+        ib->SetSize(numpolys * 3, false);
+
+        int vcount = 0;
+        float* vertexData = (float *) vb->Lock(0, numvertices);
+        unsigned short* indexData = (unsigned short*) ib->Lock(0, numpolys * 3);
+
+        for (unsigned i = 0; i < map->surfaces_.Size(); i++)
+        {
+            msurface_t* surf = map->surfaces_[i];
+            glpoly_t* poly = surf->polys;
+
+            while(poly)
+            {
+                // copy vertex data into vertex buffer
+                for (int j = 0; j < poly->numverts; j++)
+                {
+                    //printf("%f, %f, %f\n", poly->verts[j][0], poly->verts[j][1], poly->verts[j][2]);
+                    *vertexData = poly->verts[j][0]; vertexData++; // x
+                    *vertexData = poly->verts[j][2]; vertexData++; // y
+                    *vertexData = poly->verts[j][1]; vertexData++; // z
+
+
+                    // fake normal
+                    // *vertexData = 0; vertexData++;
+                    // *vertexData = 1; vertexData++;
+                    // *vertexData = 0; vertexData++;
+
+                    *vertexData = poly->verts[j][3]; vertexData++; // u0
+                    *vertexData = poly->verts[j][4]; vertexData++; // v0
+                    // *vertexData = poly->verts[j][5]; vertexData++; // u1
+                    // *vertexData = poly->verts[j][6]; vertexData++; // v1
+                }
+
+                for (int j = 0; j < poly->numverts - 2; j++)
+                {
+                    *indexData = vcount; indexData++;
+                    *indexData = vcount + j + 1; indexData++;
+                    *indexData = vcount + j + 2; indexData++;
+                }
+
+                vcount += poly->numverts;
+
+                poly = poly->next;            }
+            }
+
+        vb->Unlock();
+        ib->Unlock();
+
+        Geometry* geom = new Geometry(context_);
+
+        geom->SetIndexBuffer(ib);
+        geom->SetVertexBuffer(0, vb, elementMask);
+        geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, true);
+
+        submeshes.Push(geom);
+    }
+
     SharedPtr<Model> world(new Model(context_));
 
-    SharedPtr<IndexBuffer> ib;
-    SharedPtr<VertexBuffer> vb;
+    world->SetNumGeometries(submeshes.Size());
 
-    vb = new VertexBuffer(context_);
-    ib = new IndexBuffer(context_);
+    for (unsigned i = 0; i < submeshes.Size(); i++)
+    {
+        world->SetNumGeometryLodLevels(i, 1);
+        world->SetGeometry(i, 0, submeshes[i]);
+    }
 
-    // going to need normal
-    unsigned elementMask = MASK_POSITION | MASK_NORMAL | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
+
+    world->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
+
+    Node* worldNode = scene_->CreateChild("World");
+    worldNode->SetScale(1);
+    StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
+    worldObject->SetModel(world);
+
+    for (unsigned i = 0; i < materials.Size(); i++)
+    {
+        ResourceCache* cache = GetSubsystem<ResourceCache>();
+        //worldObject->SetMaterial(i, cache->GetResource<Material>("Materials/StoneTiled.xml"));
+        worldObject->SetMaterial(i, materials[i]);
+    }
+
+    /*
+    SharedPtr<Model> world(new Model(context_));
+
 
     // count the vertices and indices
     int numvertices = 0;
@@ -69,6 +300,8 @@ void Q2Renderer::InitializeWorldModel()
     for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
     {
         glpoly_t* poly = surf->polys;
+
+        MapSurface(context_, surf);
 
         while(poly)
         {
@@ -95,36 +328,43 @@ void Q2Renderer::InitializeWorldModel()
         {
             // GL POLYGON
 
+            if (!textureLookup.Contains(surf->texinfo->image->name))
+            {
+                //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
+                //Texture* texture = new Texture(context_);
+
+                //textureLookup.Insert(MakePair(String(surf->texinfo->image->name), texture));
+
+            }
+
             // copy vertex data into vertex buffer
             for (int j = 0; j < poly->numverts; j++)
             {
                 //printf("%f, %f, %f\n", poly->verts[j][0], poly->verts[j][1], poly->verts[j][2]);
                 *vertexData = poly->verts[j][0]; vertexData++; // x
-                *vertexData = poly->verts[j][1]; vertexData++; // y
-                *vertexData = poly->verts[j][2]; vertexData++; // z
+                *vertexData = poly->verts[j][2]; vertexData++; // y
+                *vertexData = poly->verts[j][1]; vertexData++; // z
+
 
                 // fake normal
-                *vertexData = 0; vertexData++;
-                *vertexData = 1; vertexData++;
-                *vertexData = 0; vertexData++;
+                // *vertexData = 0; vertexData++;
+                // *vertexData = 1; vertexData++;
+                // *vertexData = 0; vertexData++;
 
                 *vertexData = poly->verts[j][3]; vertexData++; // u0
                 *vertexData = poly->verts[j][4]; vertexData++; // v0
-                //*vertexData = poly->verts[j][5]; vertexData++; // u1
-                //*vertexData = poly->verts[j][6]; vertexData++; // v1
+                // *vertexData = poly->verts[j][5]; vertexData++; // u1
+                // *vertexData = poly->verts[j][6]; vertexData++; // v1
             }
 
-            int c = 0;
-            for (int j = 0; j < poly->numverts - 1; j += 2)
+            for (int j = 0; j < poly->numverts - 2; j++)
             {
-                *indexData = vcount + j; indexData++;
-                *indexData = vcount + ((j + 1) % poly->numverts); indexData++;
-                *indexData = vcount + ((j + 2) % poly->numverts); indexData++;
-                c+=3;
+                *indexData = vcount; indexData++;
+                *indexData = vcount + j + 1; indexData++;
+                *indexData = vcount + j + 2; indexData++;
             }
 
-            vcount += c;
-
+            vcount += poly->numverts;
 
             poly = poly->next;
         }
@@ -145,50 +385,15 @@ void Q2Renderer::InitializeWorldModel()
     world->SetNumGeometryLodLevels(0, 1);
     world->SetGeometry(0, 0, geom);
 
-
     world->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
 
     Node* worldNode = scene_->CreateChild("World");
     worldNode->SetScale(1);
     StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
     worldObject->SetModel(world);
-    worldObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+    //worldObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+    */
 
-    Node* zoneNode = scene_->CreateChild("Zone");
-    Zone* zone = zoneNode->CreateComponent<Zone>();
-    // Set same volume as the Octree, set a close bluish fog and some ambient light
-    zone->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
-    zone->SetAmbientColor(Color(1, 1, 1));
-    zone->SetFogStart(10000);
-    zone->SetFogEnd(10000);
-
-    printf("%i\n", numpolys * 3);
-
-    // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
-    // light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
-    // The light will use default settings (white light, no shadows)
-    Node* lightNode = scene_->CreateChild("DirectionalLight");
-    lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
-    Light* light = lightNode->CreateComponent<Light>();
-    light->SetLightType(LIGHT_DIRECTIONAL);
-
-    // Create a scene node for the camera, which we will move around
-    // The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
-    cameraNode_ = scene_->CreateChild("Camera");
-    Camera* camera = cameraNode_->CreateComponent<Camera>();
-    camera->SetFarClip(65000.0f);
-
-    // Set an initial position for the camera scene node above the plane
-    cameraNode_->SetPosition(Vector3(128, -320, -1000));
-
-    Renderer* renderer = GetSubsystem<Renderer>();
-
-
-    // Set up a viewport to the Renderer subsystem so that the 3D scene can be seen. We need to define the scene and the camera
-    // at minimum. Additionally we could configure the viewport screen size and the rendering path (eg. forward / deferred) to
-    // use, but now we just use full screen and default render path configured in the engine command line options
-    SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
-    renderer->SetViewport(0, viewport);
 
     // Subscribe HandlePostRenderUpdate() function for processing the post-render update event, during which we request
     // debug geometry
@@ -201,6 +406,8 @@ void Q2Renderer::HandlePostRenderUpdate(StringHash eventType, VariantMap& eventD
 {
     Renderer* renderer = GetSubsystem<Renderer>();
     renderer->DrawDebugGeometry(false);
+
+    cameraNode_->Rotate(Quaternion(.1, Vector3(0, 1, 0)));
 }
 
 extern "C"
