@@ -14,6 +14,7 @@
 #include "Renderer.h"
 #include "ResourceCache.h"
 #include "Scene.h"
+#include "Zone.h"
 #include "StaticModel.h"
 #include "Text.h"
 #include "UI.h"
@@ -59,7 +60,7 @@ void Q2Renderer::InitializeWorldModel()
     ib = new IndexBuffer(context_);
 
     // going to need normal
-    unsigned elementMask = MASK_POSITION | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
+    unsigned elementMask = MASK_POSITION | MASK_NORMAL | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
 
     // count the vertices and indices
     int numvertices = 0;
@@ -101,20 +102,28 @@ void Q2Renderer::InitializeWorldModel()
                 *vertexData = poly->verts[j][0]; vertexData++; // x
                 *vertexData = poly->verts[j][1]; vertexData++; // y
                 *vertexData = poly->verts[j][2]; vertexData++; // z
+
+                // fake normal
+                *vertexData = 0; vertexData++;
+                *vertexData = 1; vertexData++;
+                *vertexData = 0; vertexData++;
+
                 *vertexData = poly->verts[j][3]; vertexData++; // u0
                 *vertexData = poly->verts[j][4]; vertexData++; // v0
                 //*vertexData = poly->verts[j][5]; vertexData++; // u1
                 //*vertexData = poly->verts[j][6]; vertexData++; // v1
             }
 
-            for (int j = 0; j < 1 /*poly->numverts - 2*/; j++)
+            int c = 0;
+            for (int j = 0; j < poly->numverts - 1; j += 2)
             {
-                *indexData = vcount; indexData++;
-                *indexData = vcount + j + 1; indexData++;
-                *indexData = vcount + j + 2; indexData++;
+                *indexData = vcount + j; indexData++;
+                *indexData = vcount + ((j + 1) % poly->numverts); indexData++;
+                *indexData = vcount + ((j + 2) % poly->numverts); indexData++;
+                c+=3;
             }
 
-            vcount += 3;// poly->numverts;
+            vcount += c;
 
 
             poly = poly->next;
@@ -145,6 +154,14 @@ void Q2Renderer::InitializeWorldModel()
     worldObject->SetModel(world);
     worldObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
 
+    Node* zoneNode = scene_->CreateChild("Zone");
+    Zone* zone = zoneNode->CreateComponent<Zone>();
+    // Set same volume as the Octree, set a close bluish fog and some ambient light
+    zone->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
+    zone->SetAmbientColor(Color(1, 1, 1));
+    zone->SetFogStart(10000);
+    zone->SetFogEnd(10000);
+
     printf("%i\n", numpolys * 3);
 
     // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
@@ -162,7 +179,7 @@ void Q2Renderer::InitializeWorldModel()
     camera->SetFarClip(65000.0f);
 
     // Set an initial position for the camera scene node above the plane
-    cameraNode_->SetPosition(Vector3(128, -320, 41));
+    cameraNode_->SetPosition(Vector3(128, -320, -1000));
 
     Renderer* renderer = GetSubsystem<Renderer>();
 
