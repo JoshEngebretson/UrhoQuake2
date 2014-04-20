@@ -13,9 +13,18 @@ class Q2Renderer: public Object
     SharedPtr<Scene> scene_;
     SharedPtr<Node> cameraNode_;
 
+    /// Camera yaw angle.
+    float yaw_;
+    /// Camera pitch angle.
+    float pitch_;
+
+
+    void HandleUpdate(StringHash eventType, VariantMap& eventData);
     void HandlePostRenderUpdate(StringHash eventType, VariantMap& eventData);
 
     void CreateScene();
+
+    void MoveCamera(float timeStep);
 
 public:
 

@@ -3,6 +3,7 @@
 #include "CoreEvents.h"
 #include "Engine.h"
 #include "Font.h"
+#include "FileSystem.h"
 #include "Graphics.h"
 #include "Input.h"
 #include "Material.h"
@@ -47,20 +48,54 @@ HashMap<Material*, SurfaceMap*> surfaceMap;
 
 static Texture2D* LoadTexture(Context* context, const String& name)
 {
+    ResourceCache* cache = context->GetSubsystem<ResourceCache>();
+
     if (!textureLookup.Contains(name))
     {
-        //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
-        Texture2D* texture = new Texture2D(context);
-        int width = 128;
-        int height = 128;
 
-        texture->SetNumLevels(1);
-        texture->SetSize(width, height, Graphics::GetRGBFormat());
-        SharedArrayPtr<unsigned char> emptyBitmap(new unsigned char[width * height * 3]);
-        unsigned char c = rand() % 128 + 120;
-        memset(emptyBitmap.Get(), c, width * height * 3);
+        FileSystem* fileSystem = context->GetSubsystem<FileSystem>();
 
-        texture->SetData(0, 0, 0, width, height, emptyBitmap.Get());
+        String imageFileName = String("Textures/") + GetFileName(name) + ".jpg";
+        Texture2D* texture;
+        if (!fileSystem->FileExists("Data/" + imageFileName))
+        {
+            printf("NOPE: %s\n", imageFileName.CString());
+
+            //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
+            texture  = new Texture2D(context);
+            int width = 128;
+            int height = 128;
+
+            texture->SetNumLevels(1);
+            texture->SetSize(width, height, Graphics::GetRGBAFormat());
+            SharedArrayPtr<unsigned char> emptyBitmap(new unsigned char[width * height * 4]);
+
+            const int checkerboardSize = 128, checkSize = 8;
+
+            int *checkerboard = (int*)emptyBitmap.Get();
+
+            unsigned char c1 = rand() % 128 + 30;
+            unsigned char c2 = c1 + 30;
+            unsigned int color1 = 0xFF << 24 | c1 << 16 | c1 << 8 | c1;
+            unsigned int color2 = 0xFF << 24 | c2 << 16 | c2 << 8 | c2;
+
+            for (int i = 0; i < checkerboardSize; i++)
+            {
+                for (int j = 0; j < checkerboardSize; j++)
+                {
+                    checkerboard[(i * checkerboardSize) + j] = (((i / checkSize) ^ (j / checkSize)) & 1) == 0 ? color1 : color2;
+                }
+            }
+
+            texture->SetData(0, 0, 0, width, height, emptyBitmap.Get());
+        }
+        else
+        {
+            texture = cache->GetResource<Texture2D>(imageFileName);
+            texture->SetAddressMode(COORD_U, ADDRESS_WRAP);
+            texture->SetAddressMode(COORD_V, ADDRESS_WRAP);
+        }
+
         textureLookup.Insert(MakePair(name, texture));
     }
 
@@ -89,6 +124,10 @@ static Material* LoadMaterial(Context* context, const String& name)
 static void MapSurface(Context* context, msurface_t* surface)
 {
     String name(surface->texinfo->image->name);
+
+    if (name.Find("trigger") != String::NPOS)
+        return;
+
     Material* material = LoadMaterial(context, name);
 
     if (!surfaceMap.Contains(material))
@@ -103,8 +142,11 @@ static void MapSurface(Context* context, msurface_t* surface)
 }
 
 
-Q2Renderer::Q2Renderer(Context* context) : Object(context)
+Q2Renderer::Q2Renderer(Context* context) : Object(context),
+    yaw_(0.0f),
+    pitch_(0.0f)
 {
+
 
 }
 
@@ -143,9 +185,12 @@ void Q2Renderer::CreateScene()
     cameraNode_ = scene_->CreateChild("Camera");
     Camera* camera = cameraNode_->CreateComponent<Camera>();
     camera->SetFarClip(65000.0f);
+    camera->SetFov(75);
 
     // Set an initial position for the camera scene node above the plane
-    cameraNode_->SetPosition(Vector3(128, 41, -320));
+    cameraNode_->SetPosition(Vector3(128,41,-320));
+
+    //cameraNode_->SetPosition(Vector3(0, 0, -2000));
 
     Renderer* renderer = GetSubsystem<Renderer>();
 
@@ -155,8 +200,6 @@ void Q2Renderer::CreateScene()
     // use, but now we just use full screen and default render path configured in the engine command line options
     SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
     renderer->SetViewport(0, viewport);
-
-
 }
 
 void Q2Renderer::InitializeWorldModel()
@@ -223,16 +266,9 @@ void Q2Renderer::InitializeWorldModel()
                 // copy vertex data into vertex buffer
                 for (int j = 0; j < poly->numverts; j++)
                 {
-                    //printf("%f, %f, %f\n", poly->verts[j][0], poly->verts[j][1], poly->verts[j][2]);
                     *vertexData = poly->verts[j][0]; vertexData++; // x
                     *vertexData = poly->verts[j][2]; vertexData++; // y
                     *vertexData = poly->verts[j][1]; vertexData++; // z
-
-
-                    // fake normal
-                    // *vertexData = 0; vertexData++;
-                    // *vertexData = 1; vertexData++;
-                    // *vertexData = 0; vertexData++;
 
                     *vertexData = poly->verts[j][3]; vertexData++; // u0
                     *vertexData = poly->verts[j][4]; vertexData++; // v0
@@ -259,7 +295,7 @@ void Q2Renderer::InitializeWorldModel()
 
         geom->SetIndexBuffer(ib);
         geom->SetVertexBuffer(0, vb, elementMask);
-        geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, true);
+        geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, false);
 
         submeshes.Push(geom);
     }
@@ -285,129 +321,69 @@ void Q2Renderer::InitializeWorldModel()
     for (unsigned i = 0; i < materials.Size(); i++)
     {
         ResourceCache* cache = GetSubsystem<ResourceCache>();
-        //worldObject->SetMaterial(i, cache->GetResource<Material>("Materials/StoneTiled.xml"));
         worldObject->SetMaterial(i, materials[i]);
     }
-
-    /*
-    SharedPtr<Model> world(new Model(context_));
-
-
-    // count the vertices and indices
-    int numvertices = 0;
-    int numpolys = 0;
-    msurface_t* surf = r_worldmodel->surfaces;
-    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
-    {
-        glpoly_t* poly = surf->polys;
-
-        MapSurface(context_, surf);
-
-        while(poly)
-        {
-            numvertices += poly->numverts;
-            numpolys += poly->numverts - 2;
-            poly = poly->next;
-        }
-    }
-
-    vb->SetSize(numvertices, elementMask);
-    ib->SetSize(numpolys * 3, false);
-
-    int vcount = 0;
-    float* vertexData = (float *) vb->Lock(0, numvertices);
-    unsigned short* indexData = (unsigned short*) ib->Lock(0, numpolys * 3);
-
-    surf = r_worldmodel->surfaces;
-
-    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
-    {
-        glpoly_t* poly = surf->polys;
-
-        while(poly)
-        {
-            // GL POLYGON
-
-            if (!textureLookup.Contains(surf->texinfo->image->name))
-            {
-                //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
-                //Texture* texture = new Texture(context_);
-
-                //textureLookup.Insert(MakePair(String(surf->texinfo->image->name), texture));
-
-            }
-
-            // copy vertex data into vertex buffer
-            for (int j = 0; j < poly->numverts; j++)
-            {
-                //printf("%f, %f, %f\n", poly->verts[j][0], poly->verts[j][1], poly->verts[j][2]);
-                *vertexData = poly->verts[j][0]; vertexData++; // x
-                *vertexData = poly->verts[j][2]; vertexData++; // y
-                *vertexData = poly->verts[j][1]; vertexData++; // z
-
-
-                // fake normal
-                // *vertexData = 0; vertexData++;
-                // *vertexData = 1; vertexData++;
-                // *vertexData = 0; vertexData++;
-
-                *vertexData = poly->verts[j][3]; vertexData++; // u0
-                *vertexData = poly->verts[j][4]; vertexData++; // v0
-                // *vertexData = poly->verts[j][5]; vertexData++; // u1
-                // *vertexData = poly->verts[j][6]; vertexData++; // v1
-            }
-
-            for (int j = 0; j < poly->numverts - 2; j++)
-            {
-                *indexData = vcount; indexData++;
-                *indexData = vcount + j + 1; indexData++;
-                *indexData = vcount + j + 2; indexData++;
-            }
-
-            vcount += poly->numverts;
-
-            poly = poly->next;
-        }
-
-    }
-
-    vb->Unlock();
-    ib->Unlock();
-
-
-    world->SetNumGeometries(1);
-
-    SharedPtr<Geometry> geom(new Geometry(context_));
-
-    geom->SetIndexBuffer(ib);
-    geom->SetVertexBuffer(0, vb, elementMask);
-    geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, true);
-    world->SetNumGeometryLodLevels(0, 1);
-    world->SetGeometry(0, 0, geom);
-
-    world->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
-
-    Node* worldNode = scene_->CreateChild("World");
-    worldNode->SetScale(1);
-    StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
-    worldObject->SetModel(world);
-    //worldObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
-    */
-
 
     // Subscribe HandlePostRenderUpdate() function for processing the post-render update event, during which we request
     // debug geometry
     SubscribeToEvent(E_POSTRENDERUPDATE, HANDLER(Q2Renderer, HandlePostRenderUpdate));
+    SubscribeToEvent(E_UPDATE, HANDLER(Q2Renderer, HandleUpdate));
 
 
 }
+
+void Q2Renderer::MoveCamera(float timeStep)
+{
+    // Do not move if the UI has a focused element (the console)
+    if (GetSubsystem<UI>()->GetFocusElement())
+        return;
+
+    Input* input = GetSubsystem<Input>();
+
+    // Movement speed as world units per second
+    const float MOVE_SPEED = 200.0f;
+    // Mouse sensitivity as degrees per pixel
+    const float MOUSE_SENSITIVITY = 0.2f;
+
+    // Use this frame's mouse motion to adjust camera node yaw and pitch. Clamp the pitch between -90 and 90 degrees
+    IntVector2 mouseMove = input->GetMouseMove();
+    yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
+    pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
+    pitch_ = Clamp(pitch_, -90.0f, 90.0f);
+
+    // Construct new orientation for the camera scene node from yaw and pitch. Roll is fixed to zero
+    cameraNode_->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
+
+    // Read WASD keys and move the camera scene node to the corresponding direction if they are pressed
+    // Use the Translate() function (default local space) to move relative to the node's orientation.
+    if (input->GetKeyDown('W'))
+        cameraNode_->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+    if (input->GetKeyDown('S'))
+        cameraNode_->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+    if (input->GetKeyDown('A'))
+        cameraNode_->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+    if (input->GetKeyDown('D'))
+        cameraNode_->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+}
+
+void Q2Renderer::HandleUpdate(StringHash eventType, VariantMap& eventData)
+{
+    using namespace Update;
+
+    // Take the frame time step, which is stored as a float
+    float timeStep = eventData[P_TIMESTEP].GetFloat();
+
+    // Move the camera, scale movement with time step
+    MoveCamera(timeStep);
+}
+
 
 void Q2Renderer::HandlePostRenderUpdate(StringHash eventType, VariantMap& eventData)
 {
     Renderer* renderer = GetSubsystem<Renderer>();
     renderer->DrawDebugGeometry(false);
 
-    cameraNode_->Rotate(Quaternion(.1, Vector3(0, 1, 0)));
+    //cameraNode_->Rotate(Quaternion(.2, Vector3(0, 1, 0)));
 }
 
 extern "C"
