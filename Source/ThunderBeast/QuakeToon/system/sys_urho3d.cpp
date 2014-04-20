@@ -66,14 +66,16 @@ public:
         engineParameters_["LogName"]     = "QuakeToon.log";
         engineParameters_["FullScreen"]  = false;
         engineParameters_["Headless"]    = false;
+        engineParameters_["WindowWidth"]    = 1280;
+        engineParameters_["WindowHeight"]    = 720;
     }
 
     /// Setup after engine initialization. Creates the logo, console & debug HUD.
     void Start()
     {
 
-        // Enable OS cursor
-        GetSubsystem<Input>()->SetMouseVisible(true);
+        // Disable OS cursor
+        GetSubsystem<Input>()->SetMouseVisible(false);
 
         // todo, define argc and argv as Urho3D also wants command line args
         int argc = 3;

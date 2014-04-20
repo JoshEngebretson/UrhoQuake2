@@ -59,7 +59,7 @@ static Texture2D* LoadTexture(Context* context, const String& name)
         Texture2D* texture;
         if (!fileSystem->FileExists("Data/" + imageFileName))
         {
-            printf("NOPE: %s\n", imageFileName.CString());
+            //printf("NOPE: %s\n", imageFileName.CString());
 
             //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
             texture  = new Texture2D(context);
@@ -175,10 +175,10 @@ void Q2Renderer::CreateScene()
     // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
     // light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
     // The light will use default settings (white light, no shadows)
-    Node* lightNode = scene_->CreateChild("DirectionalLight");
-    lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
-    Light* light = lightNode->CreateComponent<Light>();
-    light->SetLightType(LIGHT_DIRECTIONAL);
+    //Node* lightNode = scene_->CreateChild("DirectionalLight");
+    //lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
+    //Light* light = lightNode->CreateComponent<Light>();
+    //light->SetLightType(LIGHT_DIRECTIONAL);
 
     // Create a scene node for the camera, which we will move around
     // The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
@@ -186,6 +186,18 @@ void Q2Renderer::CreateScene()
     Camera* camera = cameraNode_->CreateComponent<Camera>();
     camera->SetFarClip(65000.0f);
     camera->SetFov(75);
+
+    // Create a point light to the world so that we can see something.
+    Node* pNode = cameraNode_->CreateChild("Light");
+    pNode->SetPosition(Vector3(10, 10, 0));
+    Light* plight = pNode->CreateComponent<Light>();
+    plight->SetLightType(LIGHT_POINT);
+    plight->SetRange(500.0f);
+    plight->SetColor(Color(1, 1, 1));
+    plight->SetBrightness(1);
+    plight->SetCastShadows(true);
+
+
 
     // Set an initial position for the camera scene node above the plane
     cameraNode_->SetPosition(Vector3(128,41,-320));
@@ -216,6 +228,7 @@ void Q2Renderer::InitializeWorldModel()
 
     Vector<Geometry*> submeshes;
     Vector<Material*> materials;
+    Vector<Vector3> centers;
 
     for (HashMap<Material*, SurfaceMap*>::ConstIterator i = surfaceMap.Begin(); i != surfaceMap.End(); ++i)
     {
@@ -243,11 +256,12 @@ void Q2Renderer::InitializeWorldModel()
         SharedPtr<IndexBuffer> ib;
         SharedPtr<VertexBuffer> vb;
 
+        // TODO: share vertex buffers
         vb = new VertexBuffer(context_);
         ib = new IndexBuffer(context_);
 
         // going to need normal
-        unsigned elementMask = MASK_POSITION  | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
+        unsigned elementMask = MASK_POSITION  | MASK_NORMAL| MASK_TEXCOORD1;// | MASK_TANGENT;// | MASK_TEXCOORD2;
 
         vb->SetSize(numvertices, elementMask);
         ib->SetSize(numpolys * 3, false);
@@ -256,28 +270,61 @@ void Q2Renderer::InitializeWorldModel()
         float* vertexData = (float *) vb->Lock(0, numvertices);
         unsigned short* indexData = (unsigned short*) ib->Lock(0, numpolys * 3);
 
+        Vector3 center = Vector3::ZERO;
+
         for (unsigned i = 0; i < map->surfaces_.Size(); i++)
         {
             msurface_t* surf = map->surfaces_[i];
             glpoly_t* poly = surf->polys;
+
+            // calculate the poly normal
+            Vector3 v0(poly->verts[0][0], poly->verts[0][2], poly->verts[0][1]);
+            Vector3 v1(poly->verts[1][0], poly->verts[1][2], poly->verts[1][1]);
+            Vector3 v2(poly->verts[2][0], poly->verts[2][2], poly->verts[2][1]);
+
+            Vector3 c0(v1 - v0);
+            Vector3 c1(v2 - v0);
+            c0.Normalize();
+            c1.Normalize();
+
+            Vector3 normal(surf->plane->normal[0], surf->plane->normal[2], surf->plane->normal[1]);
+            if (surf->flags & SURF_PLANEBACK)
+                normal = -normal;
 
             while(poly)
             {
                 // copy vertex data into vertex buffer
                 for (int j = 0; j < poly->numverts; j++)
                 {
-                    *vertexData = poly->verts[j][0]; vertexData++; // x
-                    *vertexData = poly->verts[j][2]; vertexData++; // y
-                    *vertexData = poly->verts[j][1]; vertexData++; // z
+                    *vertexData++ = poly->verts[j][0]; // x
+                    *vertexData++ = poly->verts[j][2]; // y
+                    *vertexData++ = poly->verts[j][1]; // z
 
-                    *vertexData = poly->verts[j][3]; vertexData++; // u0
-                    *vertexData = poly->verts[j][4]; vertexData++; // v0
-                    // *vertexData = poly->verts[j][5]; vertexData++; // u1
-                    // *vertexData = poly->verts[j][6]; vertexData++; // v1
+                    center.x_ += poly->verts[j][0];
+                    center.y_ += poly->verts[j][2];
+                    center.z_ += poly->verts[j][1];
+
+                    *vertexData++ = normal.x_;
+                    *vertexData++ = normal.y_;
+                    *vertexData++ = normal.z_;
+
+                    *vertexData++ = poly->verts[j][3];    // u0
+                    *vertexData++ = poly->verts[j][4];    // v0
+                    // *vertexData++ = poly->verts[j][5]; // u1
+                    // *vertexData++ = poly->verts[j][6]; // v1
+
+                    // Tangent
+                    //#undef DotProduct // fix me, coming in from Quake2
+                    //Vector3 xyz = (Vector3::RIGHT - normal * normal.DotProduct(Vector3::RIGHT)).Normalized();
+                    //*vertexData++ = xyz.x_;
+                    //*vertexData++ = xyz.y_;
+                    //*vertexData++ = xyz.z_;
+                    //*vertexData++ = 1.0f;
+
                 }
 
                 for (int j = 0; j < poly->numverts - 2; j++)
-                {
+                {                                       
                     *indexData = vcount; indexData++;
                     *indexData = vcount + j + 1; indexData++;
                     *indexData = vcount + j + 2; indexData++;
@@ -291,12 +338,15 @@ void Q2Renderer::InitializeWorldModel()
         vb->Unlock();
         ib->Unlock();
 
+        center /= numpolys * 3;
+
+        centers.Push(center);
+
         Geometry* geom = new Geometry(context_);
 
         geom->SetIndexBuffer(ib);
         geom->SetVertexBuffer(0, vb, elementMask);
         geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, false);
-
         submeshes.Push(geom);
     }
 
@@ -308,25 +358,36 @@ void Q2Renderer::InitializeWorldModel()
     {
         world->SetNumGeometryLodLevels(i, 1);
         world->SetGeometry(i, 0, submeshes[i]);
+        //world->SetGeometryCenter(i, centers[i]);
     }
-
 
     world->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
 
-    Node* worldNode = scene_->CreateChild("World");
-    worldNode->SetScale(1);
+    Node* worldNode = scene_->CreateChild("World");    
     StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
+    worldObject->SetCastShadows(true);
     worldObject->SetModel(world);
-
     for (unsigned i = 0; i < materials.Size(); i++)
     {
-        ResourceCache* cache = GetSubsystem<ResourceCache>();
         worldObject->SetMaterial(i, materials[i]);
     }
 
+    /*
+    ResourceCache* cache = GetSubsystem<ResourceCache>();
+    Node* planeNode = scene_->CreateChild("Plane");
+    planeNode->SetScale(Vector3(100.0f, 1.0f, 100.0f));
+    planeNode->SetPosition(Vector3(0, 10, 0));
+    StaticModel* planeObject = planeNode->CreateComponent<StaticModel>();
+
+    planeObject->SetModel(cache->GetResource<Model>("Models/Plane.mdl"));
+    planeObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+    planeObject->SetCastShadows(false);
+    */
+
+
     // Subscribe HandlePostRenderUpdate() function for processing the post-render update event, during which we request
     // debug geometry
-    SubscribeToEvent(E_POSTRENDERUPDATE, HANDLER(Q2Renderer, HandlePostRenderUpdate));
+    //SubscribeToEvent(E_POSTRENDERUPDATE, HANDLER(Q2Renderer, HandlePostRenderUpdate));
     SubscribeToEvent(E_UPDATE, HANDLER(Q2Renderer, HandleUpdate));
 
 
