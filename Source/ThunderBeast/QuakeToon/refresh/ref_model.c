@@ -27,6 +27,8 @@ model_t	*currentmodel;
 model_t	*loadmodel;
 int		modfilelen;
 
+void GL_SubdivideSurface (msurface_t *fa);
+
 void Mod_LoadSpriteModel (model_t *mod, void *buffer);
 void Mod_LoadBrushModel (model_t *mod, void *buffer);
 void Mod_LoadAliasModel (model_t *mod, void *buffer);
@@ -1120,6 +1122,7 @@ void R_BeginRegistration (char *model)
 	flushmap = ri.Cvar_Get ("flushmap", "0", 0);
 	if ( strcmp(mod_known[0].name, fullname) || flushmap->value)
 		Mod_Free (&mod_known[0]);
+
 	r_worldmodel = Mod_ForName(fullname, true);
 
 	r_viewcluster = -1;
@@ -1169,6 +1172,7 @@ struct model_s *R_RegisterModel (char *name)
 	return mod;
 }
 
+void R_SetupUrhoScene();
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
@@ -1192,6 +1196,9 @@ void R_EndRegistration (void)
 	}
 
 	GL_FreeUnusedImages ();
+
+    R_SetupUrhoScene();
+
 }
 
 

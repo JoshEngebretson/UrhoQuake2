@@ -13,10 +13,12 @@ class Q2Renderer: public Object
     SharedPtr<Scene> scene_;
     SharedPtr<Node> cameraNode_;
 
+    void HandlePostRenderUpdate(StringHash eventType, VariantMap& eventData);
+
 public:
 
     Q2Renderer(Context* context);
 
-    void Initialize();
+    void InitializeWorldModel();
 };
 

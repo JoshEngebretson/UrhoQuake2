@@ -1110,6 +1110,8 @@ void PutClientInServer (edict_t *ent)
 	// ranging doesn't count this client
 	SelectSpawnPoint (ent, spawn_origin, spawn_angles);
 
+    printf("SPAWN: %f %f %f\n", spawn_origin[0], spawn_origin[1], spawn_origin[2]);
+
 	index = ent-g_edicts-1;
 	client = ent->client;
 

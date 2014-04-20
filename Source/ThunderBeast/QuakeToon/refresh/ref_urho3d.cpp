@@ -6,6 +6,9 @@
 #include "Graphics.h"
 #include "Input.h"
 #include "Material.h"
+#include "IndexBuffer.h"
+#include "VertexBuffer.h"
+#include "Geometry.h"
 #include "Model.h"
 #include "Octree.h"
 #include "Renderer.h"
@@ -14,6 +17,7 @@
 #include "StaticModel.h"
 #include "Text.h"
 #include "UI.h"
+#include "DebugRenderer.h"
 
 #include "DebugNew.h"
 
@@ -33,7 +37,7 @@ Q2Renderer::Q2Renderer(Context* context) : Object(context)
 
 }
 
-void Q2Renderer::Initialize()
+void Q2Renderer::InitializeWorldModel()
 {
     ResourceCache* cache = GetSubsystem<ResourceCache>();
 
@@ -44,15 +48,104 @@ void Q2Renderer::Initialize()
     // is also legal to place objects outside the volume but their visibility can then not be checked in a hierarchically
     // optimizing manner
     scene_->CreateComponent<Octree>();
+    scene_->CreateComponent<DebugRenderer>();
 
-    // Create a child scene node (at world origin) and a StaticModel component into it. Set the StaticModel to show a simple
-    // plane mesh with a "stone" material. Note that naming the scene nodes is optional. Scale the scene node larger
-    // (100 x 100 world units)
-    Node* planeNode = scene_->CreateChild("Plane");
-    planeNode->SetScale(Vector3(100.0f, 1.0f, 100.0f));
-    StaticModel* planeObject = planeNode->CreateComponent<StaticModel>();
-    planeObject->SetModel(cache->GetResource<Model>("Models/Plane.mdl"));
-    planeObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+    SharedPtr<Model> world(new Model(context_));
+
+    SharedPtr<IndexBuffer> ib;
+    SharedPtr<VertexBuffer> vb;
+
+    vb = new VertexBuffer(context_);
+    ib = new IndexBuffer(context_);
+
+    // going to need normal
+    unsigned elementMask = MASK_POSITION | MASK_TEXCOORD1;// | MASK_TEXCOORD2;
+
+    // count the vertices and indices
+    int numvertices = 0;
+    int numpolys = 0;
+    msurface_t* surf = r_worldmodel->surfaces;
+    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
+    {
+        glpoly_t* poly = surf->polys;
+
+        while(poly)
+        {
+            numvertices += poly->numverts;
+            numpolys += poly->numverts - 2;
+            poly = poly->next;
+        }
+    }
+
+    vb->SetSize(numvertices, elementMask);
+    ib->SetSize(numpolys * 3, false);
+
+    int vcount = 0;
+    float* vertexData = (float *) vb->Lock(0, numvertices);
+    unsigned short* indexData = (unsigned short*) ib->Lock(0, numpolys * 3);
+
+    surf = r_worldmodel->surfaces;
+
+    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
+    {
+        glpoly_t* poly = surf->polys;
+
+        while(poly)
+        {
+            // GL POLYGON
+
+            // copy vertex data into vertex buffer
+            for (int j = 0; j < poly->numverts; j++)
+            {
+                //printf("%f, %f, %f\n", poly->verts[j][0], poly->verts[j][1], poly->verts[j][2]);
+                *vertexData = poly->verts[j][0]; vertexData++; // x
+                *vertexData = poly->verts[j][1]; vertexData++; // y
+                *vertexData = poly->verts[j][2]; vertexData++; // z
+                *vertexData = poly->verts[j][3]; vertexData++; // u0
+                *vertexData = poly->verts[j][4]; vertexData++; // v0
+                //*vertexData = poly->verts[j][5]; vertexData++; // u1
+                //*vertexData = poly->verts[j][6]; vertexData++; // v1
+            }
+
+            for (int j = 0; j < 1 /*poly->numverts - 2*/; j++)
+            {
+                *indexData = vcount; indexData++;
+                *indexData = vcount + j + 1; indexData++;
+                *indexData = vcount + j + 2; indexData++;
+            }
+
+            vcount += 3;// poly->numverts;
+
+
+            poly = poly->next;
+        }
+
+    }
+
+    vb->Unlock();
+    ib->Unlock();
+
+
+    world->SetNumGeometries(1);
+
+    SharedPtr<Geometry> geom(new Geometry(context_));
+
+    geom->SetIndexBuffer(ib);
+    geom->SetVertexBuffer(0, vb, elementMask);
+    geom->SetDrawRange(TRIANGLE_LIST, 0, numpolys * 3, true);
+    world->SetNumGeometryLodLevels(0, 1);
+    world->SetGeometry(0, 0, geom);
+
+
+    world->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
+
+    Node* worldNode = scene_->CreateChild("World");
+    worldNode->SetScale(1);
+    StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
+    worldObject->SetModel(world);
+    worldObject->SetMaterial(cache->GetResource<Material>("Materials/StoneTiled.xml"));
+
+    printf("%i\n", numpolys * 3);
 
     // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
     // light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
@@ -62,33 +155,17 @@ void Q2Renderer::Initialize()
     Light* light = lightNode->CreateComponent<Light>();
     light->SetLightType(LIGHT_DIRECTIONAL);
 
-    // Create more StaticModel objects to the scene, randomly positioned, rotated and scaled. For rotation, we construct a
-    // quaternion from Euler angles where the Y angle (rotation about the Y axis) is randomized. The mushroom model contains
-    // LOD levels, so the StaticModel component will automatically select the LOD level according to the view distance (you'll
-    // see the model get simpler as it moves further away). Finally, rendering a large number of the same object with the
-    // same material allows instancing to be used, if the GPU supports it. This reduces the amount of CPU work in rendering the
-    // scene.
-    const unsigned NUM_OBJECTS = 200;
-    for (unsigned i = 0; i < NUM_OBJECTS; ++i)
-    {
-        Node* mushroomNode = scene_->CreateChild("Mushroom");
-        mushroomNode->SetPosition(Vector3(Random(90.0f) - 45.0f, 0.0f, Random(90.0f) - 45.0f));
-        mushroomNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
-        mushroomNode->SetScale(0.5f + Random(2.0f));
-        StaticModel* mushroomObject = mushroomNode->CreateComponent<StaticModel>();
-        mushroomObject->SetModel(cache->GetResource<Model>("Models/Mushroom.mdl"));
-        mushroomObject->SetMaterial(cache->GetResource<Material>("Materials/Mushroom.xml"));
-    }
-
     // Create a scene node for the camera, which we will move around
     // The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
     cameraNode_ = scene_->CreateChild("Camera");
-    cameraNode_->CreateComponent<Camera>();
+    Camera* camera = cameraNode_->CreateComponent<Camera>();
+    camera->SetFarClip(65000.0f);
 
     // Set an initial position for the camera scene node above the plane
-    cameraNode_->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
+    cameraNode_->SetPosition(Vector3(128, -320, 41));
 
     Renderer* renderer = GetSubsystem<Renderer>();
+
 
     // Set up a viewport to the Renderer subsystem so that the 3D scene can be seen. We need to define the scene and the camera
     // at minimum. Additionally we could configure the viewport screen size and the rendering path (eg. forward / deferred) to
@@ -96,12 +173,28 @@ void Q2Renderer::Initialize()
     SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
     renderer->SetViewport(0, viewport);
 
+    // Subscribe HandlePostRenderUpdate() function for processing the post-render update event, during which we request
+    // debug geometry
+    SubscribeToEvent(E_POSTRENDERUPDATE, HANDLER(Q2Renderer, HandlePostRenderUpdate));
+
+
+}
+
+void Q2Renderer::HandlePostRenderUpdate(StringHash eventType, VariantMap& eventData)
+{
+    Renderer* renderer = GetSubsystem<Renderer>();
+    renderer->DrawDebugGeometry(false);
 }
 
 extern "C"
 {
 
 static Q2Renderer* gRender = NULL;
+
+void R_SetupUrhoScene()
+{
+    gRender->InitializeWorldModel();
+}
 
 byte	dottexture[8][8] =
 {

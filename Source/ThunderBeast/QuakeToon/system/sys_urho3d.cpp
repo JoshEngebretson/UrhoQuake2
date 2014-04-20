@@ -1,11 +1,20 @@
 
-#include "FileSystem.h"
-#include "Engine.h"
 #include "Application.h"
-#include "CoreEvents.h"
-
-#include "UI.h"
+#include "Console.h"
+#include "DebugHud.h"
+#include "Engine.h"
+#include "FileSystem.h"
+#include "Graphics.h"
 #include "Input.h"
+#include "InputEvents.h"
+#include "Renderer.h"
+#include "ResourceCache.h"
+#include "Sprite.h"
+#include "Texture2D.h"
+#include "Timer.h"
+#include "UI.h"
+#include "XMLFile.h"
+#include "CoreEvents.h"
 
 #include "sys_urho3d.h"
 
@@ -70,6 +79,21 @@ public:
         int argc = 3;
         char *argv[] = {"quake", "+map", "demo1"};
         Qcommon_Init (argc, argv);
+
+        // Get default style
+        ResourceCache* cache = GetSubsystem<ResourceCache>();
+        XMLFile* xmlFile = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
+
+        // Create console
+        Console* console = engine_->CreateConsole();
+        console->SetDefaultStyle(xmlFile);
+        console->GetBackground()->SetOpacity(0.8f);
+
+        // Create debug HUD.
+        DebugHud* debugHud = engine_->CreateDebugHud();
+        debugHud->SetDefaultStyle(xmlFile);
+        debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+
 
         // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events
         // like the ScreenMode event sent by the Graphics subsystem when opening the application window. To catch those as well we
