@@ -9,9 +9,6 @@ static vec3_t	modelorg;		// relative to viewpoint
 
 msurface_t	*r_alpha_surfaces;
 
-#define DYNAMIC_LIGHT_WIDTH  128
-#define DYNAMIC_LIGHT_HEIGHT 128
-
 #define LIGHTMAP_BYTES 4
 
 #define	BLOCK_WIDTH		128
@@ -122,7 +119,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
             bl = s_blocklights;
 
             for (i=0 ; i<3 ; i++)
-                scale[i] = 1.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
+                scale[i] = 2.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
 
             if ( scale[0] == 1.0F &&
                  scale[1] == 1.0F &&
@@ -159,7 +156,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
             bl = s_blocklights;
 
             for (i=0 ; i<3 ; i++)
-                scale[i] = 1.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
+                scale[i] = 2.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
 
             if ( scale[0] == 1.0F &&
                  scale[1] == 1.0F &&
@@ -407,6 +404,8 @@ static void LM_UploadBlock( qboolean dynamic )
                        GL_UNSIGNED_BYTE,
                        gl_lms.lightmap_buffer );
         */
+        void R_CreateLightmap(int id, int width, int height, unsigned char* data);
+        R_CreateLightmap(gl_lms.current_lightmap_texture, BLOCK_WIDTH, BLOCK_HEIGHT, gl_lms.lightmap_buffer);
         if ( ++gl_lms.current_lightmap_texture == MAX_LIGHTMAPS )
             ri.Sys_Error( ERR_DROP, "LM_UploadBlock() - MAX_LIGHTMAPS exceeded\n" );
     }
@@ -553,7 +552,7 @@ void GL_CreateSurfaceLightmap (msurface_t *surf)
 void GL_BeginBuildingLightmaps (model_t *m)
 {
     memset( gl_lms.allocated, 0, sizeof(gl_lms.allocated) );
-    gl_lms.current_lightmap_texture = 1;
+    gl_lms.current_lightmap_texture = 0;
 }
 
 void GL_EndBuildingLightmaps (void)

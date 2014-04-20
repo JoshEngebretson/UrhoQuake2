@@ -42,6 +42,9 @@ struct SurfaceMap
     Vector<msurface_t*> surfaces_;
 };
 
+static float _scale = .1f;
+
+Vector<Texture2D*> lightmapTextures;
 HashMap<String, Texture2D*> textureLookup;
 HashMap<String, SharedPtr<Material> > materialLookup;
 HashMap<Material*, SurfaceMap*> surfaceMap;
@@ -59,7 +62,7 @@ static Texture2D* LoadTexture(Context* context, const String& name)
         Texture2D* texture;
         if (!fileSystem->FileExists("Data/" + imageFileName))
         {
-            //printf("NOPE: %s\n", imageFileName.CString());
+            printf("NOPE: %s\n", imageFileName.CString());
 
             //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
             texture  = new Texture2D(context);
@@ -74,7 +77,7 @@ static Texture2D* LoadTexture(Context* context, const String& name)
 
             int *checkerboard = (int*)emptyBitmap.Get();
 
-            unsigned char c1 = rand() % 128 + 30;
+            unsigned char c1 = 96;
             unsigned char c2 = c1 + 30;
             unsigned int color1 = 0xFF << 24 | c1 << 16 | c1 << 8 | c1;
             unsigned int color2 = 0xFF << 24 | c2 << 16 | c2 << 8 | c2;
@@ -103,18 +106,61 @@ static Texture2D* LoadTexture(Context* context, const String& name)
 
 }
 
-static Material* LoadMaterial(Context* context, const String& name)
+static Material* LoadMaterial(Context* context, int lightmap, const String& name, msurface_t* surface)
 {
     if (!materialLookup.Contains(name))
     {
-        Texture* texture = LoadTexture(context, name);
-
         ResourceCache* cache = context->GetSubsystem<ResourceCache>();
-        Material* stone = cache->GetResource<Material>("Materials/StoneTiled.xml");
-        SharedPtr<Material> material = stone->Clone();
-        material->SetName(name);
-        material->SetTexture(TU_DIFFUSE, texture);
-        materialLookup.Insert(MakePair(name, material));
+
+        if (name.Find("bluwter") != String::NPOS)
+        {
+            Texture* texture = LoadTexture(context, name);
+            SharedPtr<Material> material = SharedPtr<Material>(cache->GetResource<Material>("Materials/Water.xml"));
+            material->SetTexture(TU_DIFFUSE, texture);
+            materialLookup.Insert(MakePair(name, material));
+
+            material->SetShaderParameter("NoiseTiling", .002f);
+            material->SetShaderParameter("NoiseStrength", .04f);
+            material->SetShaderParameter("WaterTint", Vector3(0.7f,0.7f,1.0f));
+
+        }
+        else
+        {
+            Texture* texture = LoadTexture(context, name);
+
+            SharedPtr<Material> material = SharedPtr<Material>(new Material(context));
+            Technique* technique;
+            bool trans = surface->texinfo->flags & SURF_TRANS33 || surface->texinfo->flags & SURF_TRANS66;
+            if (!trans)
+                technique = cache->GetResource<Technique>("Techniques/DiffLightMap.xml");
+            else
+            {
+                technique = cache->GetResource<Technique>("Techniques/DiffAlpha.xml");
+                material->SetShaderParameter("MatDiffColor", Vector4(1,1,1, .2f));
+            }
+
+            material->SetNumTechniques(1);
+            material->SetTechnique(0, technique);
+            material->SetName(name);
+            material->SetTexture(TU_DIFFUSE, texture);
+            if (lightmap < lightmapTextures.Size())
+                material->SetTexture(TU_EMISSIVE, lightmapTextures[lightmap]);
+
+            /*
+
+            Material* stone = cache->GetResource<Material>("Materials/StoneTiled.xml");
+            SharedPtr<Material> material = stone->Clone();
+            material->SetName(name);
+            material->SetTexture(TU_DIFFUSE, texture);
+            if (lightmap < lightmapTextures.Size())
+                material->SetTexture(TU_EMISSIVE, lightmapTextures[lightmap]);
+            */
+
+            materialLookup.Insert(MakePair(name, material));
+
+        }
+
+
     }
 
     return materialLookup.Find(name)->second_;
@@ -128,7 +174,15 @@ static void MapSurface(Context* context, msurface_t* surface)
     if (name.Find("trigger") != String::NPOS)
         return;
 
-    Material* material = LoadMaterial(context, name);
+    if (name.Find("sky") != String::NPOS)
+        return;
+
+    //if (name.Find("bluwter") != String::NPOS)
+    //    return;
+
+    name += "_LM" + String(surface->lightmaptexturenum);
+
+    Material* material = LoadMaterial(context, surface->lightmaptexturenum, name, surface);
 
     if (!surfaceMap.Contains(material))
     {
@@ -189,10 +243,10 @@ void Q2Renderer::CreateScene()
 
     // Create a point light to the world so that we can see something.
     Node* pNode = cameraNode_->CreateChild("Light");
-    pNode->SetPosition(Vector3(10, 10, 0));
+    pNode->SetPosition(Vector3(-20, 0, 0));
     Light* plight = pNode->CreateComponent<Light>();
     plight->SetLightType(LIGHT_POINT);
-    plight->SetRange(500.0f);
+    plight->SetRange(0.0f);
     plight->SetColor(Color(1, 1, 1));
     plight->SetBrightness(1);
     plight->SetCastShadows(true);
@@ -200,7 +254,7 @@ void Q2Renderer::CreateScene()
 
 
     // Set an initial position for the camera scene node above the plane
-    cameraNode_->SetPosition(Vector3(128,41,-320));
+    cameraNode_->SetPosition(Vector3(128 * _scale,41* _scale,-320* _scale));
 
     //cameraNode_->SetPosition(Vector3(0, 0, -2000));
 
@@ -217,6 +271,8 @@ void Q2Renderer::CreateScene()
 void Q2Renderer::InitializeWorldModel()
 {
     CreateScene();
+
+    printf("Initialzing WorldModel with %i lightmaps\n", lightmapTextures.Size());
 
     // map surfaces, each unique material will become a geometry
     // we're going to want to do this by areas eventually
@@ -261,7 +317,7 @@ void Q2Renderer::InitializeWorldModel()
         ib = new IndexBuffer(context_);
 
         // going to need normal
-        unsigned elementMask = MASK_POSITION  | MASK_NORMAL| MASK_TEXCOORD1;// | MASK_TANGENT;// | MASK_TEXCOORD2;
+        unsigned elementMask = MASK_POSITION  | MASK_NORMAL| MASK_TEXCOORD1  | MASK_TEXCOORD2;// | MASK_TANGENT;//;
 
         vb->SetSize(numvertices, elementMask);
         ib->SetSize(numpolys * 3, false);
@@ -296,9 +352,9 @@ void Q2Renderer::InitializeWorldModel()
                 // copy vertex data into vertex buffer
                 for (int j = 0; j < poly->numverts; j++)
                 {
-                    *vertexData++ = poly->verts[j][0]; // x
-                    *vertexData++ = poly->verts[j][2]; // y
-                    *vertexData++ = poly->verts[j][1]; // z
+                    *vertexData++ = poly->verts[j][0] * _scale; // x
+                    *vertexData++ = poly->verts[j][2] * _scale; // y
+                    *vertexData++ = poly->verts[j][1] * _scale ; // z
 
                     center.x_ += poly->verts[j][0];
                     center.y_ += poly->verts[j][2];
@@ -310,8 +366,8 @@ void Q2Renderer::InitializeWorldModel()
 
                     *vertexData++ = poly->verts[j][3];    // u0
                     *vertexData++ = poly->verts[j][4];    // v0
-                    // *vertexData++ = poly->verts[j][5]; // u1
-                    // *vertexData++ = poly->verts[j][6]; // v1
+                    *vertexData++ = poly->verts[j][5]; // u1
+                    *vertexData++ = poly->verts[j][6]; // v1
 
                     // Tangent
                     //#undef DotProduct // fix me, coming in from Quake2
@@ -402,7 +458,7 @@ void Q2Renderer::MoveCamera(float timeStep)
     Input* input = GetSubsystem<Input>();
 
     // Movement speed as world units per second
-    const float MOVE_SPEED = 200.0f;
+    const float MOVE_SPEED = 20.0f;
     // Mouse sensitivity as degrees per pixel
     const float MOUSE_SENSITIVITY = 0.2f;
 
@@ -455,6 +511,20 @@ static Q2Renderer* gRender = NULL;
 void R_SetupUrhoScene()
 {
     gRender->InitializeWorldModel();
+}
+
+void R_CreateLightmap(int id, int width, int height, unsigned char* data)
+{
+    printf("LIGHTMAP: %i %ix%i\n", id, width, height);
+
+    Context* context = gRender->GetContext();
+
+    Texture2D* texture = new Texture2D(context);
+    texture->SetNumLevels(1);
+    texture->SetSize(width, height, Graphics::GetRGBAFormat());
+    texture->SetData(0, 0, 0, width, height, data);
+    lightmapTextures.Push(texture);
+
 }
 
 byte	dottexture[8][8] =

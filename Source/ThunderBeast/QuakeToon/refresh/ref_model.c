@@ -619,7 +619,8 @@ void Mod_LoadFaces (lump_t *l)
 				out->extents[i] = 16384;
 				out->texturemins[i] = -8192;
 			}
-			GL_SubdivideSurface (out);	// cut up polygon for warps
+
+            GL_SubdivideSurface (out);	// cut up polygon for warps
 		}
 
 		// create lightmaps and polygons

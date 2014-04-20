@@ -79,7 +79,7 @@ public:
 
         // todo, define argc and argv as Urho3D also wants command line args
         int argc = 3;
-        char *argv[] = {"quake", "+map", "demo1"};
+        char *argv[] = {"quake", "+map", "demo2"};
         Qcommon_Init (argc, argv);
 
         // Get default style
