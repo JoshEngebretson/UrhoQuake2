@@ -521,98 +521,98 @@ void Q2Renderer::MoveCamera(float timeStep)
     {
         wdown = true;
 
-        Key_Event(K_UPARROW, qtrue, Sys_Milliseconds());
+        Key_Event(K_UPARROW, qtrue, 0);
 
     }
     else if (wdown)
     {
         wdown = false;
 
-        Key_Event(K_UPARROW, qfalse, Sys_Milliseconds());
+        Key_Event(K_UPARROW, qfalse, 0);
     }
 
     if (input->GetKeyDown('S') && !sdown)
     {
         sdown = true;
 
-        Key_Event(K_DOWNARROW, qtrue, Sys_Milliseconds());
+        Key_Event(K_DOWNARROW, qtrue, 0);
 
     }
     else if (sdown)
     {
         sdown = false;
 
-        Key_Event(K_DOWNARROW, qfalse, Sys_Milliseconds());
+        Key_Event(K_DOWNARROW, qfalse, 1);
     }
 
     if (input->GetKeyDown('A') && !adown)
     {
         adown = true;
 
-        Key_Event(K_LEFTARROW, qtrue, Sys_Milliseconds());
+        Key_Event(K_LEFTARROW, qtrue, 0);
 
     }
     else if (adown)
     {
         adown = false;
 
-        Key_Event(K_LEFTARROW, qfalse, Sys_Milliseconds());
+        Key_Event(K_LEFTARROW, qfalse, 0);
     }
 
     if (input->GetKeyDown('D') && !ddown)
     {
         ddown = true;
 
-        Key_Event(K_RIGHTARROW, qtrue, Sys_Milliseconds());
+        Key_Event(K_RIGHTARROW, qtrue, 0);
 
     }
     else if (ddown)
     {
         ddown = false;
 
-        Key_Event(K_RIGHTARROW, qfalse, Sys_Milliseconds());
+        Key_Event(K_RIGHTARROW, qfalse, 0);
     }
 
     if (input->GetKeyDown(' ') && !spacedown)
     {
         spacedown = true;
 
-        Key_Event(K_SPACE, qtrue, Sys_Milliseconds());
+        Key_Event(K_SPACE, qtrue, 0);
 
     }
     else if (spacedown)
     {
-        ddown = spacedown;
+        spacedown = false;
 
-        Key_Event(K_SPACE, qfalse, Sys_Milliseconds());
+        Key_Event(K_SPACE, qfalse, 0);
     }
 
     if (input->GetKeyDown('C') && !cdown)
     {
         cdown = true;
 
-        Key_Event('c', qtrue, Sys_Milliseconds());
+        Key_Event('c', qtrue, 0);
 
     }
     else if (cdown)
     {
         cdown = false;
 
-        Key_Event('c', qfalse, Sys_Milliseconds());
+        Key_Event('c', qfalse, 0);
     }
 
     if (input->GetKeyDown('F') && !fdown)
     {
         fdown = true;
 
-        Key_Event(K_MOUSE1, qtrue, Sys_Milliseconds());
+        Key_Event(K_MOUSE1, qtrue, 0);
 
     }
     else if (fdown)
     {
         fdown = false;
 
-        Key_Event(K_MOUSE1, qfalse, Sys_Milliseconds());
+        Key_Event(K_MOUSE1, qfalse, 0);
     }
 
 
