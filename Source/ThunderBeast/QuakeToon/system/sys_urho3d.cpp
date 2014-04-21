@@ -94,7 +94,7 @@ public:
         // Create debug HUD.
         DebugHud* debugHud = engine_->CreateDebugHud();
         debugHud->SetDefaultStyle(xmlFile);
-        debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+        //debugHud->Toggle(DEBUGHUD_SHOW_ALL);
 
 
         // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events

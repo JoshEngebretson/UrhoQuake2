@@ -22,6 +22,7 @@
 #include "Text.h"
 #include "UI.h"
 #include "DebugRenderer.h"
+#include "RenderPath.h"
 
 #include "DebugNew.h"
 
@@ -58,7 +59,7 @@ static Texture2D* LoadTexture(Context* context, const String& name)
 
         FileSystem* fileSystem = context->GetSubsystem<FileSystem>();
 
-        String imageFileName = String("Textures/") + GetFileName(name) + ".jpg";
+        String imageFileName = String("Textures/") + GetFileName(name) + ".tga";
         Texture2D* texture;
         if (!fileSystem->FileExists("Data/" + imageFileName))
         {
@@ -145,6 +146,13 @@ static Material* LoadMaterial(Context* context, int lightmap, const String& name
             material->SetTexture(TU_DIFFUSE, texture);
             if (lightmap < lightmapTextures.Size())
                 material->SetTexture(TU_EMISSIVE, lightmapTextures[lightmap]);
+            else
+            {
+                // I believe this is in the case of moving brush models
+                // just set here, renders wrong but doesn't flicker
+                material->SetTexture(TU_EMISSIVE, texture);
+            }
+
 
             /*
 
@@ -221,7 +229,7 @@ void Q2Renderer::CreateScene()
     Zone* zone = zoneNode->CreateComponent<Zone>();
     // Set same volume as the Octree, set a close bluish fog and some ambient light
     zone->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
-    zone->SetAmbientColor(Color(.5, .5, .5));
+    zone->SetAmbientColor(Color(.8, .8, .8));
     zone->SetFogStart(10000);
     zone->SetFogEnd(10000);
 
@@ -243,13 +251,13 @@ void Q2Renderer::CreateScene()
 
     // Create a point light to the world so that we can see something.
     Node* pNode = cameraNode_->CreateChild("Light");
-    pNode->SetPosition(Vector3(-20, 0, 0));
+    pNode->SetPosition(Vector3(0, 0, 0));
     Light* plight = pNode->CreateComponent<Light>();
     plight->SetLightType(LIGHT_POINT);
     plight->SetRange(0.0f);
     plight->SetColor(Color(1, 1, 1));
     plight->SetBrightness(1);
-    plight->SetCastShadows(true);
+    plight->SetCastShadows(false);
 
 
 
@@ -265,7 +273,17 @@ void Q2Renderer::CreateScene()
     // at minimum. Additionally we could configure the viewport screen size and the rendering path (eg. forward / deferred) to
     // use, but now we just use full screen and default render path configured in the engine command line options
     SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
+
+    SharedPtr<RenderPath> effectRenderPath = viewport->GetRenderPath()->Clone();
+
+    //effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/Bloom.xml"));
+    // Make the bloom mixing parameter more pronounced
+    //effectRenderPath->SetShaderParameter("BloomMix", Vector2(1.0f, 1.5f));
+    //effectRenderPath->SetShaderParameter("BloomThreshold",.2f);
+    //viewport->SetRenderPath(effectRenderPath);
+
     renderer->SetViewport(0, viewport);
+
 }
 
 void Q2Renderer::InitializeWorldModel()
