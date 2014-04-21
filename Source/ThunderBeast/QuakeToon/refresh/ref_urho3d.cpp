@@ -24,6 +24,7 @@
 #include "DebugRenderer.h"
 #include "RenderPath.h"
 
+
 #include "DebugNew.h"
 
 #include "../system/sys_urho3d.h"
@@ -33,6 +34,9 @@ extern "C" {
 #include "ref_local.h"
 #include "ref_model.h"
 #include "ref_image.h"
+#include "../client/keys.h"
+#include "../client/client.h"
+
 }
 
 using namespace Urho3D;
@@ -254,7 +258,7 @@ void Q2Renderer::CreateScene()
     pNode->SetPosition(Vector3(0, 0, 0));
     Light* plight = pNode->CreateComponent<Light>();
     plight->SetLightType(LIGHT_POINT);
-    plight->SetRange(0.0f);
+    plight->SetRange(20.0f);
     plight->SetColor(Color(1, 1, 1));
     plight->SetBrightness(1);
     plight->SetCastShadows(false);
@@ -486,11 +490,15 @@ void Q2Renderer::MoveCamera(float timeStep)
     pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
     pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
+    cl.viewangles[YAW] -= MOUSE_SENSITIVITY * mouseMove.x_;
+    cl.viewangles[PITCH] += MOUSE_SENSITIVITY * mouseMove.y_;
+
     // Construct new orientation for the camera scene node from yaw and pitch. Roll is fixed to zero
-    cameraNode_->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
+    //cameraNode_->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 
     // Read WASD keys and move the camera scene node to the corresponding direction if they are pressed
     // Use the Translate() function (default local space) to move relative to the node's orientation.
+    /*
     if (input->GetKeyDown('W'))
         cameraNode_->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
     if (input->GetKeyDown('S'))
@@ -499,6 +507,115 @@ void Q2Renderer::MoveCamera(float timeStep)
         cameraNode_->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
     if (input->GetKeyDown('D'))
         cameraNode_->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+    */
+
+    static bool wdown = false;
+    static bool sdown = false;
+    static bool adown = false;
+    static bool ddown = false;
+    static bool cdown = false;
+    static bool fdown = false;
+    static bool spacedown = false;
+
+    if (input->GetKeyDown('W') && !wdown)
+    {
+        wdown = true;
+
+        Key_Event(K_UPARROW, qtrue, Sys_Milliseconds());
+
+    }
+    else if (wdown)
+    {
+        wdown = false;
+
+        Key_Event(K_UPARROW, qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown('S') && !sdown)
+    {
+        sdown = true;
+
+        Key_Event(K_DOWNARROW, qtrue, Sys_Milliseconds());
+
+    }
+    else if (sdown)
+    {
+        sdown = false;
+
+        Key_Event(K_DOWNARROW, qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown('A') && !adown)
+    {
+        adown = true;
+
+        Key_Event(K_LEFTARROW, qtrue, Sys_Milliseconds());
+
+    }
+    else if (adown)
+    {
+        adown = false;
+
+        Key_Event(K_LEFTARROW, qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown('D') && !ddown)
+    {
+        ddown = true;
+
+        Key_Event(K_RIGHTARROW, qtrue, Sys_Milliseconds());
+
+    }
+    else if (ddown)
+    {
+        ddown = false;
+
+        Key_Event(K_RIGHTARROW, qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown(' ') && !spacedown)
+    {
+        spacedown = true;
+
+        Key_Event(K_SPACE, qtrue, Sys_Milliseconds());
+
+    }
+    else if (spacedown)
+    {
+        ddown = spacedown;
+
+        Key_Event(K_SPACE, qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown('C') && !cdown)
+    {
+        cdown = true;
+
+        Key_Event('c', qtrue, Sys_Milliseconds());
+
+    }
+    else if (cdown)
+    {
+        cdown = false;
+
+        Key_Event('c', qfalse, Sys_Milliseconds());
+    }
+
+    if (input->GetKeyDown('F') && !fdown)
+    {
+        fdown = true;
+
+        Key_Event(K_MOUSE1, qtrue, Sys_Milliseconds());
+
+    }
+    else if (fdown)
+    {
+        fdown = false;
+
+        Key_Event(K_MOUSE1, qfalse, Sys_Milliseconds());
+    }
+
+
 }
 
 void Q2Renderer::HandleUpdate(StringHash eventType, VariantMap& eventData)
@@ -622,6 +739,18 @@ void R_SetSky (char *name, float rotate, vec3_t axis)
 
 void	R_RenderFrame (refdef_t *fd)
 {
+    if (!gRender)
+        return;
+
+    //cameraNode_->SetPosition(Vector3(128 * _scale,41* _scale,-320* _scale));
+
+    Quaternion q(fd->viewangles[0], -fd->viewangles[1] + 90, fd->viewangles[2]);
+
+
+    gRender->cameraNode_->SetPosition(Vector3(fd->vieworg[0] *_scale, fd->vieworg[2] *_scale, fd->vieworg[1] *_scale));
+    gRender->cameraNode_->SetRotation(q);
+
+
 
 }
 

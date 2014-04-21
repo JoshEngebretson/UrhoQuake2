@@ -78,8 +78,8 @@ public:
         GetSubsystem<Input>()->SetMouseVisible(false);
 
         // todo, define argc and argv as Urho3D also wants command line args
-        int argc = 3;
-        char *argv[] = {"quake", "+map", "demo2"};
+        int argc = 4;
+        char *argv[] = {"quake", "+map", "demo1", "+notarget"};
         Qcommon_Init (argc, argv);
 
         // Get default style
@@ -112,7 +112,7 @@ public:
     void HandleUpdate(StringHash eventType, VariantMap& eventData)
     {
         // Do nothing for now, could be extended to eg. animate the display
-        Qcommon_Frame(10);
+        Qcommon_Frame(20);
     }
 
 };
