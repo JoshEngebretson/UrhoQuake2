@@ -4,7 +4,7 @@ project (QuakeToon)
 
 # Find Urho3D library
 find_package (Urho3D REQUIRED)
-include_directories (${URHO3D_INCLUDE_DIRS})
+include_directories (${URHO3D_INCLUDE_DIRS} TBE/Application TBE/System)
 
 add_definitions(-DC_ONLY -DGAME_HARD_LINKED)
 
@@ -16,9 +16,14 @@ file (GLOB COMMON_FILES qcommon/*.c qcommon/*.h )
 
 file (GLOB GAME_FILES game/*.c game/*.h )
 
+file (GLOB PLATFORM_FILES platform/*.c platform/*.h )
 
-# will be replaces
-#set (PLATFORM_SOURCE_FILES platform/net_udp.c )
+file (GLOB APPLICATION_FILES TBE/Application/*.cpp TBE/Application/*.h )
+
+file (GLOB SYSTEM_FILES TBE/System/*.cpp TBE/System/*.h )
+
+file (GLOB REFRESH_FILES TBE/Refresh/*.cpp TBE/Refresh/*.h )
+
 
 #set (NULL_SOURCE_FILES null/cd_null.c
 #                       null/glimp_null.c
@@ -32,7 +37,7 @@ file (GLOB GAME_FILES game/*.c game/*.h )
 
 #set (SYSTEM_SOURCE_FILES system/sys_urho3d.cpp system/sys_urho3d.h system/sys_hunk.c)
 
-set (SOURCE_FILES ${COMMON_FILES} ${CLIENT_FILES} ${SERVER_FILES} ${GAME_FILES})
+set (SOURCE_FILES ${COMMON_FILES} ${CLIENT_FILES} ${SERVER_FILES} ${GAME_FILES} ${PLATFORM_FILES} ${APPLICATION_FILES} ${SYSTEM_FILES} ${REFRESH_FILES})
 
 # Define target name
 set (TARGET_NAME QuakeToon)
