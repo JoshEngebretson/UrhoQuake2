@@ -9,7 +9,7 @@ static byte	mod_novis[MAX_MAP_LEAFS/8];
 static model_t	mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
 
-static model_t	*r_worldmodel;
+model_t	*r_worldmodel;
 model_t	*currentmodel;
 model_t	*loadmodel;
 
@@ -565,6 +565,7 @@ void Mod_LoadFaces (lump_t *l)
         out->numedges = LittleShort(in->numedges);
         out->flags = 0;
         out->polys = NULL;
+        out->emitted = 0;
 
         planenum = LittleShort(in->planenum);
         side = LittleShort(in->side);
@@ -1185,6 +1186,9 @@ void R_EndRegistration (void)
     }
 
     GL_FreeUnusedImages ();
+
+    void R_InitMapModel();
+    R_InitMapModel();
 
 }
 

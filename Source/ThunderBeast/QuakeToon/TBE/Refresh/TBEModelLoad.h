@@ -72,24 +72,20 @@ typedef struct msurface_s
     short		extents[2];
 
     int			light_s, light_t;	// gl lightmap coordinates
-    int			dlight_s, dlight_t; // gl lightmap coordinates for dynamic lightmaps
 
     glpoly_t	*polys;				// multiple if warped
-    struct	msurface_s	*texturechain;
-    struct  msurface_s	*lightmapchain;
 
     mtexinfo_t	*texinfo;
 
     int area;
 
-    // lighting info
-    int			dlightframe;
-    int			dlightbits;
-
     int			lightmaptexturenum;
     byte		styles[MAXLIGHTMAPS];
     float		cached_light[MAXLIGHTMAPS];	// values currently used in lightmap
     byte		*samples;		// [numstyles*surfsize]
+
+    int emitted;
+
 } msurface_t;
 
 typedef struct mnode_s
@@ -211,6 +207,8 @@ typedef struct model_s
 } model_t;
 
 void Mod_Init (void);
+byte *Mod_ClusterPVS (int cluster, model_t *model);
+mleaf_t *Mod_PointInLeaf (vec3_t p, model_t *model);
 
 // called at start of level load, this is the bsp map
 void R_BeginRegistration (char *model);

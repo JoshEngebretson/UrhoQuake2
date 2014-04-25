@@ -406,8 +406,8 @@ static void LM_UploadBlock( qboolean dynamic )
                        GL_UNSIGNED_BYTE,
                        gl_lms.lightmap_buffer );
         */
-        //void R_CreateLightmap(int id, int width, int height, unsigned char* data);
-        //R_CreateLightmap(gl_lms.current_lightmap_texture, BLOCK_WIDTH, BLOCK_HEIGHT, gl_lms.lightmap_buffer);
+        void R_CreateLightmap(int id, int width, int height, unsigned char* data);
+        R_CreateLightmap(gl_lms.current_lightmap_texture, BLOCK_WIDTH, BLOCK_HEIGHT, gl_lms.lightmap_buffer);
         if ( ++gl_lms.current_lightmap_texture == MAX_LIGHTMAPS )
             ri.Sys_Error( ERR_DROP, "LM_UploadBlock() - MAX_LIGHTMAPS exceeded\n" );
     }

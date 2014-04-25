@@ -28,9 +28,7 @@ struct image_s	*R_RegisterSkin (char *name)
 }
 
 
-void	R_RenderFrame (refdef_t *fd)
-{
-}
+void	R_RenderFrame (refdef_t *fd);
 
 struct image_s *Draw_FindPic (char *name)
 {
