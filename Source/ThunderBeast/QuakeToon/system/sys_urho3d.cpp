@@ -79,7 +79,7 @@ public:
 
         // todo, define argc and argv as Urho3D also wants command line args
         int argc = 4;
-        char *argv[] = {"quake", "+map", "demo1", "+notarget"};
+        char *argv[] = {"quake", "+map", "demo3", "+notarget"};
         Qcommon_Init (argc, argv);
 
         // Get default style
@@ -94,7 +94,7 @@ public:
         // Create debug HUD.
         DebugHud* debugHud = engine_->CreateDebugHud();
         debugHud->SetDefaultStyle(xmlFile);
-        //debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+        debugHud->Toggle(DEBUGHUD_SHOW_ALL);
 
 
         // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events

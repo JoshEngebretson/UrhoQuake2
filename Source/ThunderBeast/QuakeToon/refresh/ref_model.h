@@ -119,6 +119,8 @@ typedef struct msurface_s
 
     mtexinfo_t	*texinfo;
 
+    int area;
+
     // lighting info
     int			dlightframe;
     int			dlightbits;

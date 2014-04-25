@@ -54,12 +54,15 @@ HashMap<String, Texture2D*> textureLookup;
 HashMap<String, SharedPtr<Material> > materialLookup;
 HashMap<Material*, SurfaceMap*> surfaceMap;
 
-static Texture2D* LoadTexture(Context* context, const String& name)
+static Texture2D* LoadTexture(Context* context, msurface_t* surface)
 {
     ResourceCache* cache = context->GetSubsystem<ResourceCache>();
 
+    String name(surface->texinfo->image->name);
+
     if (!textureLookup.Contains(name))
     {
+        printf("%s\n", name.CString());
 
         FileSystem* fileSystem = context->GetSubsystem<FileSystem>();
 
@@ -67,7 +70,7 @@ static Texture2D* LoadTexture(Context* context, const String& name)
         Texture2D* texture;
         if (!fileSystem->FileExists("Data/" + imageFileName))
         {
-            printf("NOPE: %s\n", imageFileName.CString());
+            //printf("NOPE: %s\n", imageFileName.CString());
 
             //printf("%s %i x %i\n", surf->texinfo->image->name, surf->texinfo->image->width, surf->texinfo->image->height);
             texture  = new Texture2D(context);
@@ -119,7 +122,7 @@ static Material* LoadMaterial(Context* context, int lightmap, const String& name
 
         if (name.Find("bluwter") != String::NPOS)
         {
-            Texture* texture = LoadTexture(context, name);
+            Texture* texture = LoadTexture(context, surface);
             SharedPtr<Material> material = SharedPtr<Material>(cache->GetResource<Material>("Materials/Water.xml"));
             material->SetTexture(TU_DIFFUSE, texture);
             materialLookup.Insert(MakePair(name, material));
@@ -131,7 +134,7 @@ static Material* LoadMaterial(Context* context, int lightmap, const String& name
         }
         else
         {
-            Texture* texture = LoadTexture(context, name);
+            Texture* texture = LoadTexture(context, surface);
 
             SharedPtr<Material> material = SharedPtr<Material>(new Material(context));
             Technique* technique;
@@ -182,6 +185,9 @@ static Material* LoadMaterial(Context* context, int lightmap, const String& name
 static void MapSurface(Context* context, msurface_t* surface)
 {
     String name(surface->texinfo->image->name);
+
+    //if (surface->area != 0)
+    //    return;
 
     if (name.Find("trigger") != String::NPOS)
         return;
@@ -255,13 +261,14 @@ void Q2Renderer::CreateScene()
 
     // Create a point light to the world so that we can see something.
     Node* pNode = cameraNode_->CreateChild("Light");
-    pNode->SetPosition(Vector3(0, 0, 0));
+    pNode->SetPosition(Vector3(-5, 0, 0));
     Light* plight = pNode->CreateComponent<Light>();
     plight->SetLightType(LIGHT_POINT);
-    plight->SetRange(20.0f);
+    plight->SetRange(0.0f);
     plight->SetColor(Color(1, 1, 1));
     plight->SetBrightness(1);
     plight->SetCastShadows(false);
+    //plight->SetShadowIntensity(0.5f);
 
 
 
@@ -299,7 +306,8 @@ void Q2Renderer::InitializeWorldModel()
     // map surfaces, each unique material will become a geometry
     // we're going to want to do this by areas eventually
     msurface_t* surf = r_worldmodel->surfaces;
-    for (int i = 0; i < r_worldmodel->numsurfaces; i++, surf++)
+    surf += r_worldmodel->firstmodelsurface;
+    for (int i = 0; i < r_worldmodel->nummodelsurfaces; i++, surf++)
     {
         MapSurface(context_, surf);
     }
@@ -443,12 +451,14 @@ void Q2Renderer::InitializeWorldModel()
 
     Node* worldNode = scene_->CreateChild("World");    
     StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
-    worldObject->SetCastShadows(true);
+    worldObject->SetCastShadows(false);
     worldObject->SetModel(world);
     for (unsigned i = 0; i < materials.Size(); i++)
     {
         worldObject->SetMaterial(i, materials[i]);
     }
+
+    //worldObject->SetOccluder(true);
 
     /*
     ResourceCache* cache = GetSubsystem<ResourceCache>();

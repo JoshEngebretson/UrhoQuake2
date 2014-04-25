@@ -707,7 +707,7 @@ void Mod_LoadLeafs (lump_t *l)
 {
 	dleaf_t 	*in;
 	mleaf_t 	*out;
-	int			i, j, count, p;
+    int			i, j, k, count, p;
 //	glpoly_t	*poly;
 
 	in = (void *)(mod_base + l->fileofs);
@@ -730,12 +730,18 @@ void Mod_LoadLeafs (lump_t *l)
 		p = LittleLong(in->contents);
 		out->contents = p;
 
-		out->cluster = LittleShort(in->cluster);
-		out->area = LittleShort(in->area);
+        out->cluster = LittleShort(in->cluster);
+        out->area = LittleShort(in->area);
 
 		out->firstmarksurface = loadmodel->marksurfaces +
 			LittleShort(in->firstleafface);
 		out->nummarksurfaces = LittleShort(in->numleaffaces);
+
+        for (k=0 ; k < out->nummarksurfaces ; k++)
+        {
+            out->firstmarksurface[k]->area = out->area;
+        }
+
 		
 		// gl underwater warp
 #if 0
