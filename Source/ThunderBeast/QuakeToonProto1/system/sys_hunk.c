@@ -70,8 +70,7 @@ Hunk_Begin(int maxsize)
     return membase + sizeof(int);
 }
 
-void *
-Hunk_Alloc(int size)
+void * Hunk_Alloc(int size)
 {
     byte *buf;
 

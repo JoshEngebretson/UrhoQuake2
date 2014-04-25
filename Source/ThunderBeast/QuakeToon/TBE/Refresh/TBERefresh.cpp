@@ -12,8 +12,10 @@ qboolean R_Init( void *hinstance, void *hWnd )
 
 refimport_t	ri;
 
+// called at start of level load, this is the bsp map
 void R_BeginRegistration (char *model)
 {
+
 }
 
 struct model_s	*R_RegisterModel (char *name)

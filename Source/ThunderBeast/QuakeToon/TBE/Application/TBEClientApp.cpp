@@ -73,7 +73,7 @@ void TBEClientApp::SubscribeToEvents()
 void TBEClientApp::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
     using namespace Update;
-    float timeStep = eventData[P_TIMESTEP].GetFloat();
+    float timeStep = eventData[P_TIMESTEP].GetFloat() * 1000.0f;
     Qcommon_Frame((int) timeStep);
 }
 
