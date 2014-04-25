@@ -1,40 +1,7 @@
 
 #pragma once
 
-extern "C"
-{
-
-#include "../../client/ref.h"
-
-#define	TEXNUM_LIGHTMAPS	1024
-#define	TEXNUM_SCRAPS		1152
-#define	TEXNUM_IMAGES		1153
-#define		MAX_GLTEXTURES	1024
-
-typedef enum
-{
-    it_skin,
-    it_sprite,
-    it_wall,
-    it_pic,
-    it_sky
-} imagetype_t;
-
-typedef struct image_s
-{
-    char	name[MAX_QPATH];			// game path, including extension
-    imagetype_t	type;
-    int		width, height;				// source image
-    int		upload_width, upload_height;	// after power of two and picmip
-    int		registration_sequence;		// 0 = free
-    struct msurface_s	*texturechain;	// for sort-by-texture world drawing
-    int		texnum;						// gl texture binding
-    float	sl, tl, sh, th;				// 0,0 - 1,1 unless part of the scrap
-    qboolean	scrap;
-    qboolean	has_alpha;
-
-    qboolean paletted;
-} image_t;
+#include "TBEImage.h"
 
 
 typedef struct
@@ -243,4 +210,10 @@ typedef struct model_s
     void		*extradata;
 } model_t;
 
-}
+void Mod_Init (void);
+
+// called at start of level load, this is the bsp map
+void R_BeginRegistration (char *model);
+struct model_s	*R_RegisterModel (char *name);
+void R_EndRegistration (void);
+

@@ -1,8 +1,6 @@
 
 #include "TBEModelLoad.h"
-
-extern "C"
-{
+#include "TBESurface.h"
 
 extern refimport_t ri;
 
@@ -12,9 +10,9 @@ static model_t	mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
 
 static model_t	*r_worldmodel;
-static model_t	*currentmodel;
+model_t	*currentmodel;
+model_t	*loadmodel;
 
-static model_t	*loadmodel;
 static int		modfilelen;
 
 // the inline * models from the current map are kept seperate
@@ -1165,8 +1163,6 @@ struct model_s *R_RegisterModel (char *name)
     return mod;
 }
 
-void R_SetupUrhoScene();
-
 /*
 @@@@@@@@@@@@@@@@@@@@@
 R_EndRegistration
@@ -1189,8 +1185,6 @@ void R_EndRegistration (void)
     }
 
     GL_FreeUnusedImages ();
-
-    R_SetupUrhoScene();
 
 }
 
@@ -1223,5 +1217,4 @@ void Mod_FreeAll (void)
         if (mod_known[i].extradatasize)
             Mod_Free (&mod_known[i]);
     }
-}
 }

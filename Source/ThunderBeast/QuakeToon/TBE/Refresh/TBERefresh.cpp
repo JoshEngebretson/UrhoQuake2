@@ -1,4 +1,6 @@
 
+#include "TBEModelLoad.h"
+
 
 extern "C"
 {
@@ -7,35 +9,22 @@ extern "C"
 
 qboolean R_Init( void *hinstance, void *hWnd )
 {
+    GL_InitImages ();
+    Mod_Init ();
+
     return qtrue;
 }
 
 refimport_t	ri;
 
-// called at start of level load, this is the bsp map
-void R_BeginRegistration (char *model)
+void R_SetSky (char *name, float rotate, vec3_t axis)
 {
 
-}
-
-struct model_s	*R_RegisterModel (char *name)
-{
-    return NULL;
 }
 
 struct image_s	*R_RegisterSkin (char *name)
 {
     return NULL;
-}
-
-void R_EndRegistration (void)
-{
-
-}
-
-void R_SetSky (char *name, float rotate, vec3_t axis)
-{
-
 }
 
 
