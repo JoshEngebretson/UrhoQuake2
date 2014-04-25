@@ -5,6 +5,6 @@
 
 TBEApp::TBEApp(Context* context) : Application(context)
 {
-    //context_->RegisterSubsystem(new TBESystem(context_));
+    context_->RegisterSubsystem(new TBESystem(context_));
 }
 

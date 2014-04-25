@@ -13,27 +13,24 @@ class Context;
 
 using namespace Urho3D;
 
-class TBESystem : Object
+class TBESystem : public Object
 {
+    OBJECT(TBESystem);
+
+    static TBESystem* sInstance_;
+    Timer timer_;
+
+public:
+
     /// Construct.
     TBESystem(Context* context);
 
     /// Destruct.
     virtual ~TBESystem();
 
-    static TBESystem* sInstance_;
-
-    Timer timer_;
-
-public:
 
     static Engine* GetEngine();
-    static Context* GetContext();
+    static Context* GetGlobalContext();
     static TBESystem* GetSystem();
-    static unsigned GetMilliseconds()
-    {
-        return sInstance_->timer_.GetMSec(false);
-    }
-
-
+    static unsigned GetMilliseconds();
 };

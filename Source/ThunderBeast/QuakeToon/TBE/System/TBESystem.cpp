@@ -17,6 +17,8 @@ TBESystem::TBESystem(Context* context) : Object(context)
         ErrorExit("TBESystem already initialized");
     }
 
+    sInstance_ = this;
+
     timer_.Reset();
 
 }
@@ -27,7 +29,7 @@ TBESystem::~TBESystem()
 
 }
 
-Context* TBESystem::GetContext()
+Context* TBESystem::GetGlobalContext()
 {
     if (!sInstance_)
     {
@@ -59,6 +61,18 @@ Engine* TBESystem::GetEngine()
     return sInstance_->GetContext()->GetSubsystem<Engine>();
 
 }
+
+unsigned TBESystem::GetMilliseconds()
+
+{
+    if (!sInstance_)
+    {
+        ErrorExit("TBESystem not initialized");
+    }
+
+    return sInstance_->timer_.GetMSec(false);
+}
+
 
 extern "C"
 {

@@ -10,6 +10,12 @@
 
 DEFINE_APPLICATION_MAIN(TBEClientApp)
 
+extern "C"
+{
+    void Qcommon_Init (int argc, char **argv);
+    void Qcommon_Frame (int msec);
+}
+
 TBEClientApp::TBEClientApp(Context* context) : TBEApp(context)
 {
 
@@ -48,6 +54,10 @@ void TBEClientApp::Start()
     debugHud->SetDefaultStyle(xmlFile);
     debugHud->Toggle(DEBUGHUD_SHOW_ALL);
 
+    // todo, define argc and argv as Urho3D also wants command line args
+    int argc = 4;
+    const char *argv[] = {"quake", "+map", "demo1", "+notarget"};
+    Qcommon_Init (argc, (char**) argv);
 
     // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events
     // like the ScreenMode event sent by the Graphics subsystem when opening the application window. To catch those as well we
@@ -62,6 +72,8 @@ void TBEClientApp::SubscribeToEvents()
 
 void TBEClientApp::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-
+    using namespace Update;
+    float timeStep = eventData[P_TIMESTEP].GetFloat();
+    Qcommon_Frame((int) timeStep);
 }
 
