@@ -106,7 +106,7 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
             {
                 // I believe this is in the case of moving brush models
                 // just set here, renders wrong but doesn't flicker
-                material->SetTexture(TU_EMISSIVE, texture);
+                material->SetTexture(TU_EMISSIVE, NULL);
             }
 
             materialLookup.Insert(MakePair(name, material));
@@ -631,14 +631,62 @@ void	R_RenderFrame (refdef_t *fd)
             }
 
             vec3_t color;
-            R_LightPoint(ent->origin, color);
+            color[0] = 1.0f;
+            color[1] = 1.0f;
+            color[2] = 1.0f;
+
+            if ( !(ent->flags & RF_FULLBRIGHT ))
+            {
+                // Quake2 has some player lighting hack that goes back to server
+                // from refresh, check into this...
+
+                int j;
+                R_LightPoint(ent->origin, color);
+
+                if ( ent->flags & RF_MINLIGHT )
+                {
+                    for (j=0 ; j<3 ; j++)
+                        if (color[j] > 0.1)
+                            break;
+                    if (j == 3)
+                    {
+                        color[0] = 0.1;
+                        color[1] = 0.1;
+                        color[2] = 0.1;
+                    }
+                }
+
+                if ( ent->flags & RF_GLOW )
+                {	// bonus items will pulse with time
+                    float	scale;
+                    float	min;
+
+                    scale = 0.1 * sin(float(TBESystem::GetMilliseconds())/100.0f);
+
+                    for (j=0 ; j<3 ; j++)
+                    {
+                        min = color[j] * 0.8;
+                        color[j] += scale;
+                        if (color[j] < min)
+                            color[j] = min;
+                    }
+                }
+            }
+
+            float alpha = 1.0f;
+            if ( ent->flags & RF_TRANSLUCENT )
+            {
+                alpha = ent->alpha;
+            }
 
             StaticModel* aliasModel = node->GetComponent<StaticModel>();
             if (aliasModel)
             {
                 Material* material = aliasModel->GetMaterial(0);
+                material->SetTexture(TU_DIFFUSE, model->skins[ent->skinnum]->texture);
                 material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
-                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], 1));
+                material->SetShaderParameter("MatDiffColor", Vector4(color[0], color[1], color[2], alpha));
+                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], alpha));
             }
             else
             {
@@ -658,8 +706,10 @@ void	R_RenderFrame (refdef_t *fd)
                 }
 
                 Material* material = amodel->GetMaterial(0);
+                material->SetTexture(TU_DIFFUSE, model->skins[ent->skinnum]->texture);
                 material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
-                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], 1));
+                material->SetShaderParameter("MatDiffColor", Vector4(color[0], color[1], color[2], alpha));
+                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], alpha));
             }
 
             // I am not sure on the pitch and roll signs here, yaw is correct

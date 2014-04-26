@@ -39,7 +39,18 @@ static Material* GetAliasMaterial(model_t* model, int skinnum)
 
     SharedPtr<Material> material = SharedPtr<Material>(new Material(context));
     ResourceCache* cache = context->GetSubsystem<ResourceCache>();
-    Technique* technique = cache->GetResource<Technique>("Techniques/DiffEmissive.xml");
+    Technique* technique;
+
+    if (textureFile.Find("explode") != String::NPOS ||
+        textureFile.Find("smoke") != String::NPOS ||
+        textureFile.Find("flash") != String::NPOS)
+    {
+        technique = cache->GetResource<Technique>("Techniques/DiffEmissiveAlpha.xml");
+    }
+    else
+    {
+        technique = cache->GetResource<Technique>("Techniques/DiffEmissive.xml");
+    }
 
     material->SetNumTechniques(1);
     material->SetTechnique(0, technique);
