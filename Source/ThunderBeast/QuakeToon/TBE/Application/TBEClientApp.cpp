@@ -52,11 +52,11 @@ void TBEClientApp::Start()
     // Create debug HUD.
     DebugHud* debugHud = engine_->CreateDebugHud();
     debugHud->SetDefaultStyle(xmlFile);
-    debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+    //debugHud->Toggle(DEBUGHUD_SHOW_ALL);
 
     // todo, define argc and argv as Urho3D also wants command line args
-    int argc = 4;
-    const char *argv[] = {"quake", "+map", "demo1", "+notarget"};
+    int argc = 5;
+    const char *argv[] = {"quake", "+map", "demo3", "+notarget", "+god"};
     Qcommon_Init (argc, (char**) argv);
 
     // Finally subscribe to the update event. Note that by subscribing events at this point we have already missed some events

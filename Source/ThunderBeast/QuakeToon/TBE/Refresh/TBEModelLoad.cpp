@@ -1,6 +1,8 @@
 
 #include "TBEModelLoad.h"
 #include "TBESurface.h"
+#include "TBEAliasModel.h"
+
 
 extern refimport_t ri;
 
@@ -1152,9 +1154,10 @@ struct model_s *R_RegisterModel (char *name)
             pheader = (dmdl_t *)mod->extradata;
             for (i=0 ; i<pheader->num_skins ; i++)
                 mod->skins[i] = GL_FindImage ((char *)pheader + pheader->ofs_skins + i*MAX_SKINNAME, it_skin);
-//PGM
+
             mod->numframes = pheader->num_frames;
-//PGM
+
+            GetAliasModel(mod);
         }
         else if (mod->type == mod_brush)
         {

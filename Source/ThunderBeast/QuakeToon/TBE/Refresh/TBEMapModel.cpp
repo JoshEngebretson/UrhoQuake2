@@ -13,7 +13,6 @@
 #include "ResourceCache.h"
 #include "StaticModel.h"
 #include "TBESystem.h"
-
 // move me
 #include "Scene.h"
 #include "Octree.h"
@@ -24,7 +23,7 @@
 #include "DebugRenderer.h"
 
 #include "TBEMapModel.h"
-
+#include "TBEAliasModel.h"
 
 extern model_t *r_worldmodel;
 
@@ -45,6 +44,8 @@ static PODVector<Node*> dynamicLights;
 static HashMap<msurface_t*, PODVector<Node*> > surfaceNodes;
 
 static HashMap<model_t*, Node* > brushNodes;
+
+static HashMap<model_t*, PODVector<Node*> > aliasNodes;
 
 static Vector<RenderCluster> renderClusters;
 PODVector<Texture2D*> lightmapTextures;
@@ -562,14 +563,66 @@ void	R_RenderFrame (refdef_t *fd)
 
     }
 
+    // turn off all alias nodes
+    HashMap<model_t*, PODVector<Node*> >::Iterator aliasItr;
+    for (aliasItr = aliasNodes.Begin(); aliasItr != aliasNodes.End(); aliasItr++)
+    {
+        PODVector<Node*>& nodes = aliasItr->second_;
+        for (unsigned i = 0; i < nodes.Size(); i++)
+            nodes[i]->SetEnabled(false);
+    }
+
+
     for (int i = 0; i < fd->num_entities; i++)
     {
         entity_t* ent = &fd->entities[i];
 
         model_t* model = (model_t*) ent->model;
 
+        if (!model)
+            continue;
+
         if (model == r_worldmodel)
             continue;
+
+        if (model->type == mod_alias)
+        {
+            aliasItr = aliasNodes.Find(model);
+            if (aliasItr == aliasNodes.End())
+            {
+                aliasNodes.Insert(MakePair(model, PODVector<Node*>()));
+                aliasItr = aliasNodes.Find(model);
+            }
+
+            PODVector<Node*>& nodes = aliasItr->second_;
+
+            Node* node = NULL;
+            for (unsigned j = 0; j < nodes.Size(); j++)
+            {
+                if (!nodes.At(j)->IsEnabled())
+                {
+                    node = nodes.At(j);
+                    break;
+                }
+            }
+            if (!node)
+            {
+                node = scene_->CreateChild("AliasModel");
+                nodes.Push(node);
+                StaticModel* aliasModel = node->CreateComponent<StaticModel>();
+                aliasModel->SetCastShadows(false);
+                aliasModel->SetModel(GetAliasModel(model));
+                Context* context = TBESystem::GetGlobalContext();
+                ResourceCache* cache = context->GetSubsystem<ResourceCache>();
+                aliasModel->SetMaterial(0, cache->GetResource<Material>("Materials/StoneTiled.xml"));
+            }
+
+            Quaternion q(ent->angles[0], ent->angles[1], ent->angles[2]);
+            node->SetRotation(q);
+            node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
+            node->SetEnabled(true);
+
+        }
 
         if (model->type == mod_brush)
         {
