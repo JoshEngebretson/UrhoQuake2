@@ -39,13 +39,11 @@ static Material* GetAliasMaterial(model_t* model, int skinnum)
 
     SharedPtr<Material> material = SharedPtr<Material>(new Material(context));
     ResourceCache* cache = context->GetSubsystem<ResourceCache>();
-    Technique* technique = cache->GetResource<Technique>("Techniques/Diff.xml");
+    Technique* technique = cache->GetResource<Technique>("Techniques/DiffEmissive.xml");
 
     material->SetNumTechniques(1);
     material->SetTechnique(0, technique);
     material->SetName(textureFile);
-    material->SetTexture(TU_DIFFUSE, model->skins[skinnum]->texture);
-
     materialLookup.Insert(MakePair(textureFile, material));
 
     return material;
@@ -191,11 +189,7 @@ Model* GetAliasModel(model_t* model)
     nmodel->SetGeometryCenter(0, Vector3::ZERO);
     nmodel->SetBoundingBox(bbox);
 
-
-    for (int i=0 ; i<palias->num_skins ; i++)
-    {
-        model->materials[i] = GetAliasMaterial(model, i);
-    }
+    model->material = GetAliasMaterial(model, 0);
 
     // generate morphs if any
     if (palias->num_frames > 1)

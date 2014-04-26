@@ -206,7 +206,7 @@ typedef struct model_s
 
     // for alias models and skins
     image_t		*skins[MAX_MD2SKINS];
-    Urho3D::Material    *materials[MAX_MD2SKINS];
+    Urho3D::Material    *material;
 
     int			extradatasize;
     void		*extradata;

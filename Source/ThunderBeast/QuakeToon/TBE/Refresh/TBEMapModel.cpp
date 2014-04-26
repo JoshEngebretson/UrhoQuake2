@@ -26,6 +26,8 @@
 #include "TBEMapModel.h"
 #include "TBEAliasModel.h"
 
+void R_LightPoint (vec3_t p, vec3_t color);
+
 extern model_t *r_worldmodel;
 
 SharedPtr<Scene> scene_;
@@ -90,7 +92,7 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
             else
             {
                 technique = cache->GetResource<Technique>("Techniques/DiffAlpha.xml");
-                material->SetShaderParameter("MatDiffColor", Vector4(1,1,1, .2f));
+                material->SetShaderParameter("MatDiffColor", Vector4(1,1,1, surface->texinfo->flags & SURF_TRANS33 ? .33f : .66f));
             }
 
             material->SetNumTechniques(1);
@@ -425,7 +427,7 @@ static void CreateScene()
     Zone* zone = zoneNode->CreateComponent<Zone>();
     // Set same volume as the Octree, set a close bluish fog and some ambient light
     zone->SetBoundingBox(BoundingBox(Vector3(-10000, -10000, -10000),  Vector3(10000, 10000, 10000)));
-    zone->SetAmbientColor(Color(.8, .8, .8));
+    zone->SetAmbientColor(Color(0,0,0));
     zone->SetFogStart(10000);
     zone->SetFogEnd(10000);
 
@@ -616,30 +618,34 @@ void	R_RenderFrame (refdef_t *fd)
                     StaticModel* aliasModel = node->CreateComponent<StaticModel>();
                     aliasModel->SetCastShadows(false);
                     aliasModel->SetModel(amodel);
+                    aliasModel->SetMaterial(0, model->material->Clone());
                 }
                 else
                 {
                     AnimatedModel* aliasModel = node->CreateComponent<AnimatedModel>();
                     aliasModel->SetCastShadows(false);
                     aliasModel->SetModel(amodel);
+                    aliasModel->SetMaterial(0, model->material->Clone());
                 }
 
             }
 
+            vec3_t color;
+            R_LightPoint(ent->origin, color);
+
             StaticModel* aliasModel = node->GetComponent<StaticModel>();
             if (aliasModel)
             {
-                if (aliasModel->GetMaterial(0) != model->materials[ent->skinnum])
-                    aliasModel->SetMaterial(0, model->materials[ent->skinnum]);
+                Material* material = aliasModel->GetMaterial(0);
+                material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
+                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], 1));
             }
             else
             {
                 AnimatedModel* amodel = node->GetComponent<AnimatedModel>();
-                //int nmorphs = amodel->GetNumMorphs();
-
-                //amodel->SetMorphWeight(String(0), 1.0f);
 
                 amodel->ResetMorphWeights();
+
                 if (ent->frame != ent->oldframe && ent->backlerp)
                 {
                     amodel->SetMorphWeight(String(ent->frame), 1.0f - ent->backlerp);
@@ -651,23 +657,15 @@ void	R_RenderFrame (refdef_t *fd)
 
                 }
 
-
-                if (amodel)
-                {
-                    if (amodel->GetMaterial(0) != model->materials[ent->skinnum])
-                        amodel->SetMaterial(0, model->materials[ent->skinnum]);
-                }
+                Material* material = amodel->GetMaterial(0);
+                material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
+                material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], 1));
             }
-
-            dmdl_t *paliashdr = (dmdl_t *) model->extradata;
-            daliasframe_t* frame = (daliasframe_t *)((byte *)paliashdr + paliashdr->ofs_frames + ent->frame * paliashdr->framesize);
-            daliasframe_t* oldframe = (daliasframe_t *)((byte *)paliashdr + paliashdr->ofs_frames+ ent->oldframe * paliashdr->framesize);
 
             // I am not sure on the pitch and roll signs here, yaw is correct
             Quaternion q(-ent->angles[0], -ent->angles[1], ent->angles[2]);
             node->SetRotation(q);
 
-            // Quake2 does some lerp stuff see R_AliasSetUpLerpData
             Vector3 curPos(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale);
             Vector3 prevPos(ent->oldorigin[0] * _scale, ent->oldorigin[2] * _scale, ent->oldorigin[1] * _scale);
             curPos = prevPos.Lerp(curPos, 1.0f - ent->backlerp);
