@@ -111,7 +111,9 @@ Model* GetAliasModel(model_t* model)
 
     float* vertexData = (float *) vb->Lock(0, numVertices);
     Vector3 center = Vector3::ZERO;
-    BoundingBox bbox;
+
+    // this is what Q2 sets, safely covers model, we should tighten it
+    BoundingBox bbox(-32.0f * _scale, 32.0f * _scale);
 
     for (int i = 0; i < palias->num_tris; i++)
     {
@@ -160,8 +162,8 @@ Model* GetAliasModel(model_t* model)
             *vertexData++ = s;
             *vertexData++ = t;
 
-            center += Vector3(x, y, z);
-            bbox.Merge(Vector3(x, y, z));
+            //center += Vector3(x, y, z);
+            //bbox.Merge(Vector3(x, y, z));
 
         }
 
@@ -171,7 +173,7 @@ Model* GetAliasModel(model_t* model)
     vb->Unlock();
 
 
-    center /= numVertices;
+    //center /= numVertices;
 
     Geometry* geom = new Geometry(context);
 
@@ -186,7 +188,7 @@ Model* GetAliasModel(model_t* model)
 
     nmodel->SetNumGeometryLodLevels(0, 1);
     nmodel->SetGeometry(0, 0, geom);
-    nmodel->SetGeometryCenter(0, center);
+    nmodel->SetGeometryCenter(0, Vector3::ZERO);
     nmodel->SetBoundingBox(bbox);
 
 

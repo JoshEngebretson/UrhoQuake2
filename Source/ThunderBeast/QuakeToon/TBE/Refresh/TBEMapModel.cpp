@@ -636,6 +636,9 @@ void	R_RenderFrame (refdef_t *fd)
             {
                 AnimatedModel* amodel = node->GetComponent<AnimatedModel>();
                 //int nmorphs = amodel->GetNumMorphs();
+
+                //amodel->SetMorphWeight(String(0), 1.0f);
+
                 amodel->ResetMorphWeights();
                 if (ent->frame != ent->oldframe && ent->backlerp)
                 {
@@ -648,6 +651,7 @@ void	R_RenderFrame (refdef_t *fd)
 
                 }
 
+
                 if (amodel)
                 {
                     if (amodel->GetMaterial(0) != model->materials[ent->skinnum])
@@ -655,14 +659,18 @@ void	R_RenderFrame (refdef_t *fd)
                 }
             }
 
+            dmdl_t *paliashdr = (dmdl_t *) model->extradata;
+            daliasframe_t* frame = (daliasframe_t *)((byte *)paliashdr + paliashdr->ofs_frames + ent->frame * paliashdr->framesize);
+            daliasframe_t* oldframe = (daliasframe_t *)((byte *)paliashdr + paliashdr->ofs_frames+ ent->oldframe * paliashdr->framesize);
 
-            Quaternion q(-ent->angles[0], ent->angles[1], ent->angles[2]);
+            // I am not sure on the pitch and roll signs here, yaw is correct
+            Quaternion q(-ent->angles[0], -ent->angles[1], ent->angles[2]);
             node->SetRotation(q);
 
             // Quake2 does some lerp stuff see R_AliasSetUpLerpData
             Vector3 curPos(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale);
-            //Vector3 prevPos(ent->oldorigin[0] * _scale, ent->oldorigin[2] * _scale, ent->oldorigin[1] * _scale);
-
+            Vector3 prevPos(ent->oldorigin[0] * _scale, ent->oldorigin[2] * _scale, ent->oldorigin[1] * _scale);
+            curPos = prevPos.Lerp(curPos, 1.0f - ent->backlerp);
             node->SetPosition(curPos);
 
             node->SetEnabled(true);
@@ -677,7 +685,9 @@ void	R_RenderFrame (refdef_t *fd)
             //#define	PITCH				0		// up / down
             //#define	YAW					1		// left / right
             //#define	ROLL				2		// fall over
-            Quaternion q(ent->angles[0], ent->angles[1], ent->angles[2]);
+
+            // I am not sure on the pitch and roll signs here, yaw is correct
+            Quaternion q(-ent->angles[0], -ent->angles[1], ent->angles[2]);
             node->SetRotation(q);
             node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
         }
