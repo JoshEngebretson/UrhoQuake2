@@ -612,12 +612,17 @@ void	R_RenderFrame (refdef_t *fd)
                 StaticModel* aliasModel = node->CreateComponent<StaticModel>();
                 aliasModel->SetCastShadows(false);
                 aliasModel->SetModel(GetAliasModel(model));
-                Context* context = TBESystem::GetGlobalContext();
-                ResourceCache* cache = context->GetSubsystem<ResourceCache>();
-                aliasModel->SetMaterial(0, cache->GetResource<Material>("Materials/StoneTiled.xml"));
+                Context* context = TBESystem::GetGlobalContext();                
             }
 
-            Quaternion q(ent->angles[0], ent->angles[1], ent->angles[2]);
+            StaticModel* aliasModel = node->GetComponent<StaticModel>();
+            if (aliasModel)
+            {
+                if (aliasModel->GetMaterial(0) != model->materials[ent->skinnum])
+                    aliasModel->SetMaterial(0, model->materials[ent->skinnum]);
+            }
+
+            Quaternion q(-ent->angles[0], ent->angles[1], ent->angles[2]);
             node->SetRotation(q);
             node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
             node->SetEnabled(true);

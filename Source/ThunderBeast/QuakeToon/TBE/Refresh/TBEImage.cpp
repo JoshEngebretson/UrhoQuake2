@@ -44,6 +44,12 @@ image_t	*GL_FindImage (char *name, imagetype_t type)
 
         String textureName = "Textures/"+ fileName + ".tga";
 
+        if (extension == ".pcx")
+        {
+            textureName = String("baseq2/") + pathName + fileName + ".jpg";
+
+        }
+
         ResourceCache* cache = TBESystem::GetEngine()->GetSubsystem<ResourceCache>();
 
         Texture2D* texture = cache->GetResource<Texture2D>(textureName);

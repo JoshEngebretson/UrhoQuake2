@@ -3,6 +3,11 @@
 
 #include "TBEImage.h"
 
+namespace Urho3D
+{
+    class Material;
+}
+
 
 typedef struct
 {
@@ -201,6 +206,7 @@ typedef struct model_s
 
     // for alias models and skins
     image_t		*skins[MAX_MD2SKINS];
+    Urho3D::Material    *materials[MAX_MD2SKINS];
 
     int			extradatasize;
     void		*extradata;

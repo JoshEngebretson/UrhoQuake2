@@ -1033,8 +1033,7 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
         pheader->num_skins*MAX_SKINNAME);
     for (i=0 ; i<pheader->num_skins ; i++)
     {
-        mod->skins[i] = GL_FindImage ((char *)pheader + pheader->ofs_skins + i*MAX_SKINNAME
-            , it_skin);
+        mod->skins[i] = GL_FindImage ((char *)pheader + pheader->ofs_skins + i*MAX_SKINNAME, it_skin);
     }
 
     mod->mins[0] = -32;
