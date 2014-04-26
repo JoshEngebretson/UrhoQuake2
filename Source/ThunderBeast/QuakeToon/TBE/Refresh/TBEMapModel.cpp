@@ -12,6 +12,7 @@
 #include "Graphics.h"
 #include "ResourceCache.h"
 #include "StaticModel.h"
+#include "AnimatedModel.h"
 #include "TBESystem.h"
 // move me
 #include "Scene.h"
@@ -607,12 +608,22 @@ void	R_RenderFrame (refdef_t *fd)
             }
             if (!node)
             {
+                Model* amodel = GetAliasModel(model);
                 node = scene_->CreateChild("AliasModel");
                 nodes.Push(node);
-                StaticModel* aliasModel = node->CreateComponent<StaticModel>();
-                aliasModel->SetCastShadows(false);
-                aliasModel->SetModel(GetAliasModel(model));
-                Context* context = TBESystem::GetGlobalContext();                
+                if (!amodel->GetNumMorphs())
+                {
+                    StaticModel* aliasModel = node->CreateComponent<StaticModel>();
+                    aliasModel->SetCastShadows(false);
+                    aliasModel->SetModel(amodel);
+                }
+                else
+                {
+                    AnimatedModel* aliasModel = node->CreateComponent<AnimatedModel>();
+                    aliasModel->SetCastShadows(false);
+                    aliasModel->SetModel(amodel);
+                }
+
             }
 
             StaticModel* aliasModel = node->GetComponent<StaticModel>();
@@ -621,10 +632,39 @@ void	R_RenderFrame (refdef_t *fd)
                 if (aliasModel->GetMaterial(0) != model->materials[ent->skinnum])
                     aliasModel->SetMaterial(0, model->materials[ent->skinnum]);
             }
+            else
+            {
+                AnimatedModel* amodel = node->GetComponent<AnimatedModel>();
+                //int nmorphs = amodel->GetNumMorphs();
+                amodel->ResetMorphWeights();
+                if (ent->frame != ent->oldframe && ent->backlerp)
+                {
+                    amodel->SetMorphWeight(String(ent->frame), 1.0f - ent->backlerp);
+                    amodel->SetMorphWeight(String(ent->oldframe), ent->backlerp);
+                }
+                else
+                {
+                    amodel->SetMorphWeight(String(ent->frame), 1.0f);
+
+                }
+
+                if (amodel)
+                {
+                    if (amodel->GetMaterial(0) != model->materials[ent->skinnum])
+                        amodel->SetMaterial(0, model->materials[ent->skinnum]);
+                }
+            }
+
 
             Quaternion q(-ent->angles[0], ent->angles[1], ent->angles[2]);
             node->SetRotation(q);
-            node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
+
+            // Quake2 does some lerp stuff see R_AliasSetUpLerpData
+            Vector3 curPos(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale);
+            //Vector3 prevPos(ent->oldorigin[0] * _scale, ent->oldorigin[2] * _scale, ent->oldorigin[1] * _scale);
+
+            node->SetPosition(curPos);
+
             node->SetEnabled(true);
 
         }

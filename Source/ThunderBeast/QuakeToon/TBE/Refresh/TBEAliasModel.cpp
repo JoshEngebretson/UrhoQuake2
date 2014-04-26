@@ -14,7 +14,7 @@
 #include "TBESystem.h"
 
 static float r_avertexnormals[NUMVERTEXNORMALS][3] = {
-   #include "TBEAliasNormals.h"
+    #include "TBEAliasNormals.h"
 };
 
 
@@ -52,42 +52,6 @@ static Material* GetAliasMaterial(model_t* model, int skinnum)
 
 }
 
-struct AliasVertex
-{
-    float x, y, z;
-    float nx, ny, nz;
-    float u, v;
-};
-
-static PODVector<AliasVertex> aliasVertices;
-
-static int EmitAliasVertex(AliasVertex& v)
-{
-    for (unsigned i = 0; i < aliasVertices.Size(); i++)
-    {
-        const AliasVertex& v2 = aliasVertices[i];
-
-        if (fabs(v.x - v2.y ) > .01f)
-            continue;
-        if (fabs(v.y - v2.y ) > .01f)
-            continue;
-        if (fabs(v.z - v2.z ) > .01f)
-            continue;
-
-        if (fabs(v.u - v2.u ) > .01f)
-            continue;
-
-        if (fabs(v.v - v2.v ) > .01f)
-            continue;
-
-        return i;
-    }
-
-    aliasVertices.Push(v);
-    return (int) aliasVertices.Size() - 1;
-
-}
-
 Model* GetAliasModel(model_t* model)
 {
     Context* context = TBESystem::GetGlobalContext();
@@ -119,6 +83,13 @@ Model* GetAliasModel(model_t* model)
     vb = new VertexBuffer(context);
     ib = new IndexBuffer(context);
 
+    // must be shadowed for alias models
+    if (palias->num_frames > 1)
+    {
+        vb->SetShadowed(true);
+        ib->SetShadowed(true);
+    }
+
     // going to need normal
     unsigned elementMask = MASK_POSITION  | MASK_NORMAL| MASK_TEXCOORD1;
 
@@ -126,21 +97,25 @@ Model* GetAliasModel(model_t* model)
     vb->SetSize(numVertices, elementMask);
     ib->SetSize(palias->num_tris * 3, false);
 
-    int vcount = 0;
-
-    float* vertexData = (float *) vb->Lock(0, numVertices);
+    // setup index data
     unsigned short* indexData = (unsigned short*) ib->Lock(0, palias->num_tris * 3);
 
+    for (int i = 0; i < palias->num_tris; i++)
+    {
+        *indexData++ = i * 3;
+        *indexData++ = i * 3 + 1;
+        *indexData++ = i * 3 + 2;
+    }
+
+    ib->Unlock();
+
+    float* vertexData = (float *) vb->Lock(0, numVertices);
     Vector3 center = Vector3::ZERO;
     BoundingBox bbox;
 
     for (int i = 0; i < palias->num_tris; i++)
     {
         dtriangle_t* tri = pTRI + i;
-
-        *indexData++ = i * 3;
-        *indexData++ = i * 3 + 1;
-        *indexData++ = i * 3 + 2;
 
         for (int j = 0; j < 3; j++)
         {
@@ -165,6 +140,15 @@ Model* GetAliasModel(model_t* model)
             float s = float(pST[tri->index_st[j]].s) / float(palias->skinwidth);
             float t = float(pST[tri->index_st[j]].t) / float(palias->skinheight);
 
+            // this works for everything other than gun model
+            // otherwise scales are off... why?
+            if (palias->num_frames > 1)
+            {
+                x = y = z = 0.0f;
+                nx = ny = nz = 0.0f;
+            }
+
+
             *vertexData++ = x;
             *vertexData++ = y;
             *vertexData++ = z;
@@ -185,7 +169,7 @@ Model* GetAliasModel(model_t* model)
 
 
     vb->Unlock();
-    ib->Unlock();
+
 
     center /= numVertices;
 
@@ -209,6 +193,95 @@ Model* GetAliasModel(model_t* model)
     for (int i=0 ; i<palias->num_skins ; i++)
     {
         model->materials[i] = GetAliasMaterial(model, i);
+    }
+
+    // generate morphs if any
+    if (palias->num_frames > 1)
+    {
+        Vector<ModelMorph> morphs;
+
+        PODVector<unsigned> morphRangeStarts;
+        PODVector<unsigned> morphRangeCounts;
+
+
+        for (frame = 0; frame < palias->num_frames; frame++)
+        {
+            morphRangeStarts.Push(0);
+            morphRangeCounts.Push(numVertices);
+            ModelMorph morph;
+            morph.name_ = String(frame);
+            morph.nameHash_ = morph.name_;
+            morph.weight_ = 0.0f;
+
+            VertexBufferMorph vmorph;
+
+            unsigned vertexSize = sizeof(unsigned);
+            vertexSize += sizeof(Vector3) * 2;
+            vmorph.elementMask_ = MASK_POSITION | MASK_NORMAL;
+            vmorph.vertexCount_ = numVertices;
+            vmorph.morphData_ = new unsigned char[numVertices * vertexSize];
+
+            morph.buffers_[0] = vmorph;
+
+            float *morphVertex = (float*) vmorph.morphData_.Get();
+
+            pFRAME = (daliasframe_t *)(pheader + palias->ofs_frames + frame * palias->framesize);
+
+            unsigned vcount = 0;
+            for (int i = 0; i < palias->num_tris; i++)
+            {
+                dtriangle_t* tri = pTRI + i;
+
+                for (int j = 0; j < 3; j++)
+                {
+                    int vidx = tri->index_xyz[j];
+
+                    float x = float(pFRAME->verts[vidx].v[0]) * pFRAME->scale[0];
+                    float y = float(pFRAME->verts[vidx].v[2]) * pFRAME->scale[2];
+                    float z = float(pFRAME->verts[vidx].v[1]) * pFRAME->scale[1];
+
+                    x += pFRAME->translate[0];
+                    y += pFRAME->translate[2];
+                    z += pFRAME->translate[1];
+
+                    x *= _scale;
+                    y *= _scale;
+                    z *= _scale;
+
+                    float nx = r_avertexnormals[pFRAME->verts[vidx].lightnormalindex][0];
+                    float ny = r_avertexnormals[pFRAME->verts[vidx].lightnormalindex][2];
+                    float nz = r_avertexnormals[pFRAME->verts[vidx].lightnormalindex][1];
+
+                    //float s = float(pST[tri->index_st[j]].s) / float(palias->skinwidth);
+                    //float t = float(pST[tri->index_st[j]].t) / float(palias->skinheight);
+
+                    unsigned* _vidx = (unsigned*) morphVertex;
+                    *_vidx++ = vcount++;
+
+                    morphVertex = (float*) _vidx;
+
+                    *morphVertex++ = x;
+                    *morphVertex++ = y;
+                    *morphVertex++ = z;
+
+                    *morphVertex++ = nx;
+                    *morphVertex++ = ny;
+                    *morphVertex++ = nz;
+
+                }
+
+            }
+
+            morphs.Push(morph);
+
+        }
+        nmodel->SetMorphs(morphs);
+
+        Vector<SharedPtr<VertexBuffer> > vertexBuffers;
+        vertexBuffers.Push(SharedPtr<VertexBuffer>(vb));
+        nmodel->SetVertexBuffers(vertexBuffers, morphRangeStarts, morphRangeCounts);
+
+
     }
 
     modelMap.Insert(MakePair(model, nmodel));
