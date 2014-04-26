@@ -540,6 +540,12 @@ void	R_RenderFrame (refdef_t *fd)
         {
             Node* node = brushNodes.Find(model)->second_;
             node->SetEnabled(true);
+
+            //#define	PITCH				0		// up / down
+            //#define	YAW					1		// left / right
+            //#define	ROLL				2		// fall over
+            Quaternion q(ent->angles[0], ent->angles[1], ent->angles[2]);
+            node->SetRotation(q);
             node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
         }
     }
@@ -578,10 +584,5 @@ void R_InitMapModel()
 {
     CreateScene();
     MapModel::Generate();
-
-    for (int i = 0; i < r_worldmodel->numsubmodels; i++)
-    {
-        printf("%i %s\n", i, "hm");
-    }
 }
 

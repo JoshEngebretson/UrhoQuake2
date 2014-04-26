@@ -560,6 +560,7 @@ void GL_BeginBuildingLightmaps (model_t *m)
 void GL_EndBuildingLightmaps (void)
 {
 
+    LM_UploadBlock( qfalse );
 }
 
 msurface_t	*warpface;
