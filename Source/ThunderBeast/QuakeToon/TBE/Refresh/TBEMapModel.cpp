@@ -38,9 +38,11 @@ struct RenderCluster
     PODVector<msurface_t*> surfaces;
 };
 
-static PODVector<Node*> allNodes;
+static PODVector<Node*> worldNodes;
 
 static HashMap<msurface_t*, PODVector<Node*> > surfaceNodes;
+
+static HashMap<model_t*, Node* > brushNodes;
 
 static Vector<RenderCluster> renderClusters;
 PODVector<Texture2D*> lightmapTextures;
@@ -110,7 +112,7 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
 
 }
 
-static Node* EmitClusterModel(const HashMap<Material*, PODVector<msurface_t*> >& materialMap)
+static Node* EmitBrushModel(const HashMap<Material*, PODVector<msurface_t*> >& materialMap, bool isWorld = true)
 {
     Context* context = TBESystem::GetGlobalContext();
     Vector<Geometry*> submeshes;
@@ -168,16 +170,9 @@ static Node* EmitClusterModel(const HashMap<Material*, PODVector<msurface_t*> >&
             const msurface_t* surf = surfaces[i];
             glpoly_t* poly = surf->polys;
 
-            // calculate the poly normal
-            Vector3 v0(poly->verts[0][0], poly->verts[0][2], poly->verts[0][1]);
-            Vector3 v1(poly->verts[1][0], poly->verts[1][2], poly->verts[1][1]);
-            Vector3 v2(poly->verts[2][0], poly->verts[2][2], poly->verts[2][1]);
-
-            Vector3 c0(v1 - v0);
-            Vector3 c1(v2 - v0);
-            c0.Normalize();
-            c1.Normalize();
-
+            // use the plane normal, this will result in faceted lighting
+            // we need to calculate vertex normals properly, however this
+            // is complicated by Quake2's file format not having adjacency info
             Vector3 normal(surf->plane->normal[0], surf->plane->normal[2], surf->plane->normal[1]);
             if (surf->flags & SURF_PLANEBACK)
                 normal = -normal;
@@ -264,7 +259,11 @@ static Node* EmitClusterModel(const HashMap<Material*, PODVector<msurface_t*> >&
         worldObject->SetMaterial(i, materials[i]);
     }
 
-    allNodes.Push(worldNode);
+    if (isWorld)
+        worldNodes.Push(worldNode);
+
+    // clear for next model
+    surfaceMap.Clear();
 
     return worldNode;
 }
@@ -309,7 +308,8 @@ void MapModel::Initialize()
     {
         mleaf_t* leaf = &r_worldmodel->leafs[i];
 
-        if (leaf->cluster < 0 || !leaf->nummarksurfaces)
+        // cluster 0 holds inline brush surfaces?
+        if (leaf->cluster < 1 || !leaf->nummarksurfaces)
             continue;
 
         RenderCluster& cluster = renderClusters[leaf->cluster];
@@ -317,6 +317,7 @@ void MapModel::Initialize()
         for (int j = 0; j < leaf->nummarksurfaces; j++)
         {
             msurface_t* surface = leaf->firstmarksurface[j];
+
             if (!cluster.surfaces.Contains(surface))
             {
                 cluster.surfaces.Push(surface);
@@ -346,10 +347,6 @@ void MapModel::Initialize()
                         surf->emitted = 1;
                         emitted.Push(surf);
                     }
-                    else
-                    {
-                        //PODVector<Node*>& nodes = surfaceNodes.Find(surf)->second_;
-                    }
                 }
             }
 
@@ -366,7 +363,7 @@ void MapModel::Initialize()
                 MapSurface(emitted.At(j));
             }
 
-            Node* node = EmitClusterModel(surfaceMap);
+            Node* node = EmitBrushModel(surfaceMap);
 
             for (unsigned j = 0; j < emitted.Size(); j++)
             {
@@ -379,45 +376,30 @@ void MapModel::Initialize()
                 nodes.Push(node);
             }
 
-            // clear for next model
-            surfaceMap.Clear();
         }
     }
 
-    /*
-    // make sure the nodes are in the clusters
-    for (unsigned i = 0; i < renderClusters.Size(); i++)
+    for (int i = 1; i < r_worldmodel->numsubmodels;i++)
     {
-        byte* vis = Mod_ClusterPVS (i, r_worldmodel);
+        String modelname = "*";
+        modelname += i;
+        model_t* model = Mod_ForName((char*) modelname.CString(), qtrue);
 
-        RenderCluster& src = renderClusters[i];
-
-        for (unsigned j = 0; j < renderClusters.Size(); j++)
+        for (int j = 0; j < model->nummodelsurfaces; j++)
         {
-            if (i == j)
-                continue;
-
-            if (vis[j>>3] & (1<<(j&7)))
+            msurface_t* surf = r_worldmodel->surfaces + model->firstmodelsurface + j;
+            if (surf->emitted)
             {
-                RenderCluster& dst = renderClusters[j];
-
-                for (unsigned k = 0; k < src.nodes.Size(); k++)
-                {
-                    //if (!dst.nodes.Contains(src.nodes.At(k)))
-                        dst.nodes.Push(src.nodes.At(k));
-                }
-
-                for (unsigned k = 0; k < dst.nodes.Size(); k++)
-                {
-                    //if (!src.nodes.Contains(dst.nodes.At(k)))
-                        src.nodes.Push(dst.nodes.At(k));
-                }
-
+                ErrorExit("inline brush model already emitted");
             }
 
+            MapSurface(surf);
         }
 
-    }*/
+        Node* node = EmitBrushModel(surfaceMap, false);
+        brushNodes.Insert(MakePair(model, node));
+
+    }
 }
 
 static void CreateScene()
@@ -526,13 +508,41 @@ void	R_RenderFrame (refdef_t *fd)
         return;
 
     // optimize this, probably doing too much work
-    for (unsigned i = 0; i < allNodes.Size(); i++)
-        allNodes[i]->SetEnabled(false);
+    for (unsigned i = 0; i < worldNodes.Size(); i++)
+        worldNodes[i]->SetEnabled(false);
 
     mleaf_t* leaf = Mod_PointInLeaf (fd->vieworg, r_worldmodel);
 
     if (leaf->cluster < 0)
         return;
+
+    // TODO: factor in areas?
+    //if (fd->areabits)
+    //{
+    //
+    //}
+
+    for (HashMap<model_t*, Node *>::Iterator i = brushNodes.Begin(); i != brushNodes.End(); ++i)
+    {
+        i->second_->SetEnabled(false);
+
+    }
+
+    for (int i = 0; i < fd->num_entities; i++)
+    {
+        entity_t* ent = &fd->entities[i];
+        model_t* model = (model_t*) ent->model;
+
+        if (model == r_worldmodel)
+            continue;
+
+        if (model->type == mod_brush)
+        {
+            Node* node = brushNodes.Find(model)->second_;
+            node->SetEnabled(true);
+            node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
+        }
+    }
 
     byte* vis = Mod_ClusterPVS (leaf->cluster, r_worldmodel);
 
@@ -568,5 +578,10 @@ void R_InitMapModel()
 {
     CreateScene();
     MapModel::Generate();
+
+    for (int i = 0; i < r_worldmodel->numsubmodels; i++)
+    {
+        printf("%i %s\n", i, "hm");
+    }
 }
 

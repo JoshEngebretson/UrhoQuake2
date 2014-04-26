@@ -566,6 +566,7 @@ void Mod_LoadFaces (lump_t *l)
         out->flags = 0;
         out->polys = NULL;
         out->emitted = 0;
+        out->lightmaptexturenum = -1;
 
         planenum = LittleShort(in->planenum);
         side = LittleShort(in->side);

@@ -209,6 +209,7 @@ typedef struct model_s
 void Mod_Init (void);
 byte *Mod_ClusterPVS (int cluster, model_t *model);
 mleaf_t *Mod_PointInLeaf (vec3_t p, model_t *model);
+model_t *Mod_ForName (char *name, qboolean crash);
 
 // called at start of level load, this is the bsp map
 void R_BeginRegistration (char *model);
