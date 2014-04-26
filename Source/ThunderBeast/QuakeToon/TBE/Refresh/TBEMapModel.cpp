@@ -40,6 +40,8 @@ struct RenderCluster
 
 static PODVector<Node*> worldNodes;
 
+static PODVector<Node*> dynamicLights;
+
 static HashMap<msurface_t*, PODVector<Node*> > surfaceNodes;
 
 static HashMap<model_t*, Node* > brushNodes;
@@ -441,16 +443,26 @@ static void CreateScene()
     camera->SetFarClip(65000.0f);
     camera->SetFov(75);
 
-    // Create a point light to the world so that we can see something.
-    Node* pNode = cameraNode_->CreateChild("Light");
-    pNode->SetPosition(Vector3(-5, 0, 0));
-    Light* plight = pNode->CreateComponent<Light>();
-    plight->SetLightType(LIGHT_POINT);
-    plight->SetRange(0.0f);
-    plight->SetColor(Color(1, 1, 1));
-    plight->SetBrightness(1);
-    plight->SetCastShadows(false);
-    //plight->SetShadowIntensity(0.5f);
+    //static PODVector<Node*> dynamicLights;
+
+    for (int i = 0; i < 32; i++)
+    {
+        // Create a point light to the world so that we can see something.
+        Node* pNode = scene_->CreateChild("Light");
+        Light* plight = pNode->CreateComponent<Light>();
+        plight->SetLightType(LIGHT_POINT);
+        plight->SetRange(0.0f);
+        plight->SetColor(Color(1, 1, 1));
+        plight->SetBrightness(1);
+        plight->SetCastShadows(false);
+        //plight->SetShadowIntensity(0.5f);
+
+        dynamicLights.Push(pNode);
+
+        pNode->SetEnabled(false);
+
+    }
+
 
 
 
@@ -528,9 +540,32 @@ void	R_RenderFrame (refdef_t *fd)
 
     }
 
+    int curLights = 0;
+    for (unsigned i = 0; i < dynamicLights.Size(); i++)
+    {
+        dynamicLights[i]->SetEnabled(false);
+    }
+
+    for (int i = 0; i < fd->num_dlights; i++)
+    {
+        if (i >= dynamicLights.Size())
+            break;
+
+        dlight_t* dlight = &fd->dlights[i];
+
+        Node* node = dynamicLights.At(i);
+        node->SetEnabled(true);
+        Light* light = node->GetComponent<Light>();
+        light->SetRange(dlight->intensity * _scale);
+        light->SetColor(Color(dlight->color[0], dlight->color[1], dlight->color[2]));
+        node->SetPosition(Vector3(dlight->origin[0] * _scale, dlight->origin[2] * _scale, dlight->origin[1] * _scale));
+
+    }
+
     for (int i = 0; i < fd->num_entities; i++)
     {
         entity_t* ent = &fd->entities[i];
+
         model_t* model = (model_t*) ent->model;
 
         if (model == r_worldmodel)
