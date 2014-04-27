@@ -156,7 +156,7 @@ Model* GetAliasModel(model_t* model)
             if (palias->num_frames > 1)
             {
                 x = y = z = 0.0f;
-                nx = ny = nz = 0.0f;
+                //nx = ny = nz = 0.0f;
             }
 
 

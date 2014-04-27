@@ -527,6 +527,8 @@ void	R_RenderFrame (refdef_t *fd)
     for (unsigned i = 0; i < worldNodes.Size(); i++)
         worldNodes[i]->SetEnabled(false);
 
+    //printf("%f %f %f\n", fd->vieworg[0], fd->vieworg[1], fd->vieworg[2]);
+
     mleaf_t* leaf = Mod_PointInLeaf (fd->vieworg, r_worldmodel);
 
     if (leaf->cluster < 0)
@@ -735,7 +737,7 @@ void	R_RenderFrame (refdef_t *fd)
             //#define	ROLL				2		// fall over
 
             // I am not sure on the pitch and roll signs here, yaw is correct
-            Quaternion q(-ent->angles[0], -ent->angles[1], ent->angles[2]);
+            Quaternion q(-ent->angles[2], -ent->angles[1], ent->angles[0]);
             node->SetRotation(q);
             node->SetPosition(Vector3(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale));
         }
