@@ -1,6 +1,7 @@
 
 #include "TBEModelLoad.h"
 
+refimport_t	ri;
 
 extern "C"
 {
@@ -14,8 +15,6 @@ qboolean R_Init( void *hinstance, void *hWnd )
 
     return qtrue;
 }
-
-refimport_t	ri;
 
 void R_SetSky (char *name, float rotate, vec3_t axis)
 {

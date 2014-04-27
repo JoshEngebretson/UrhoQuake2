@@ -16,7 +16,16 @@ file (GLOB COMMON_FILES qcommon/*.c qcommon/*.h )
 
 file (GLOB GAME_FILES game/*.c game/*.h )
 
-file (GLOB PLATFORM_FILES platform/*.c platform/*.h )
+if (MSVC)
+
+set (PLATFORM_FILES platform/net_win_udp.c platform/sys_win_hunk.c )
+
+else()
+
+set (PLATFORM_FILES platform/net_udp.c platform/sys_hunk.c )
+
+endif()
+
 
 file (GLOB APPLICATION_FILES TBE/Application/*.cpp TBE/Application/*.h )
 

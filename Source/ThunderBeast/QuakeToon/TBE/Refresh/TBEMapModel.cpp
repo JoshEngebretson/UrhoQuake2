@@ -592,6 +592,8 @@ refdef_t r_newrefdef;
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
 void R_SetCacheState( msurface_t *surf );
 
+extern unsigned	d_8to24table[];
+
 extern "C"
 {
 void	R_RenderFrame (refdef_t *fd)
@@ -914,8 +916,7 @@ void	R_RenderFrame (refdef_t *fd)
 
     }
 
-    bool anychanged = false;
-    extern unsigned	d_8to24table[256];
+    bool anychanged = false;    
     for (int j = 0; j < MAX_PARTICLES; j++)
     {
         Billboard* bb = billboardObject->GetBillboard(j);
