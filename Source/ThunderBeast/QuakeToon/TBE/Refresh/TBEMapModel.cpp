@@ -12,6 +12,7 @@
 #include "Graphics.h"
 #include "ResourceCache.h"
 #include "StaticModel.h"
+#include "Material.h"
 #include "AnimatedModel.h"
 #include "TBESystem.h"
 // move me
@@ -205,15 +206,6 @@ static Node* EmitBrushModel(const HashMap<Material*, PODVector<msurface_t*> >& m
                     *vertexData++ = poly->verts[j][4];    // v0
                     *vertexData++ = poly->verts[j][5]; // u1
                     *vertexData++ = poly->verts[j][6]; // v1
-
-                    // Tangent
-                    //#undef DotProduct // fix me, coming in from Quake2
-                    //Vector3 xyz = (Vector3::RIGHT - normal * normal.DotProduct(Vector3::RIGHT)).Normalized();
-                    //*vertexData++ = xyz.x_;
-                    //*vertexData++ = xyz.y_;
-                    //*vertexData++ = xyz.z_;
-                    //*vertexData++ = 1.0f;
-
                 }
 
                 for (int j = 0; j < poly->numverts - 2; j++)
@@ -286,11 +278,18 @@ static void MapSurface(msurface_t* surface)
 
     name += "_LM" + String(surface->lightmaptexturenum);
 
-    Material* material = LoadMaterial(surface->lightmaptexturenum, name, surface);
+    SharedPtr<Material> material = SharedPtr<Material>(LoadMaterial(surface->lightmaptexturenum, name, surface));
+
+    if (surface->texinfo->numframes > 1)
+    {
+        material = material->Clone();
+    }
+
+    surface->material = material;
 
     if (!surfaceMap.Contains(material))
     {
-        surfaceMap.Insert(MakePair(material, PODVector<msurface_t*>()));
+        surfaceMap.Insert(MakePair(material.Get(), PODVector<msurface_t*>()));
     }
 
     surfaceMap.Find(material)->second_.Push(surface);
@@ -516,6 +515,24 @@ void R_CreateLightmap(int id, int width, int height, unsigned char* data)
 
 }
 
+static image_t *R_TextureAnimation (int frame, mtexinfo_t *tex)
+{
+    int		c;
+
+    if (!tex->next)
+        return tex->image;
+
+    c = frame % tex->numframes;
+    while (c)
+    {
+        tex = tex->next;
+        c--;
+    }
+
+    return tex->image;
+}
+
+
 extern "C"
 {
 void	R_RenderFrame (refdef_t *fd)
@@ -576,6 +593,22 @@ void	R_RenderFrame (refdef_t *fd)
         for (unsigned i = 0; i < nodes.Size(); i++)
             nodes[i]->SetEnabled(false);
     }
+
+    // world animations
+    msurface_t* surf = r_worldmodel->surfaces + r_worldmodel->firstmodelsurface;
+    for (int j = 0; j < r_worldmodel->nummodelsurfaces; j++)
+    {
+        if (surf->material && surf->texinfo->numframes)
+        {
+            image_t* image = R_TextureAnimation(int(TBESystem::GetMilliseconds()/1000.0f), surf->texinfo);
+            surf->material->SetTexture(TU_DIFFUSE, image->texture);
+        }
+
+        surf++;
+
+    }
+
+
 
 
     for (int i = 0; i < fd->num_entities; i++)
@@ -729,6 +762,19 @@ void	R_RenderFrame (refdef_t *fd)
 
         if (model->type == mod_brush)
         {
+            msurface_t* surf = model->surfaces + model->firstmodelsurface;
+            for (int j = 0; j < model->nummodelsurfaces; j++)
+            {
+                if (surf->material && surf->texinfo->numframes)
+                {
+                    image_t* image = R_TextureAnimation(ent->frame, surf->texinfo);
+                    surf->material->SetTexture(TU_DIFFUSE, image->texture);
+                }
+
+                surf++;
+
+            }
+
             Node* node = brushNodes.Find(model)->second_;
             node->SetEnabled(true);
 

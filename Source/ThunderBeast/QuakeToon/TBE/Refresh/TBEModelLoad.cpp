@@ -1,4 +1,5 @@
 
+#include "Material.h"
 #include "TBEModelLoad.h"
 #include "TBESurface.h"
 #include "TBEAliasModel.h"
@@ -568,6 +569,7 @@ void Mod_LoadFaces (lump_t *l)
         out->flags = 0;
         out->polys = NULL;
         out->emitted = 0;
+        out->material = NULL;
         out->lightmaptexturenum = -1;
 
         planenum = LittleShort(in->planenum);

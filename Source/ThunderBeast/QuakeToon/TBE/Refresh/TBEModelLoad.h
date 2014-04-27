@@ -91,6 +91,8 @@ typedef struct msurface_s
 
     int emitted;
 
+    SharedPtr<Urho3D::Material> material;
+
 } msurface_t;
 
 typedef struct mnode_s
