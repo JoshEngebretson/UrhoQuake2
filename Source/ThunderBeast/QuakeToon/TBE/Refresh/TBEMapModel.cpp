@@ -454,7 +454,7 @@ static void CreateScene()
     // The camera will use default settings (1000 far clip distance, 45 degrees FOV, set aspect ratio automatically)
     cameraNode_ = scene_->CreateChild("Camera");
     Camera* camera = cameraNode_->CreateComponent<Camera>();
-    camera->SetFarClip(65000.0f);
+    camera->SetFarClip(4096.0f);
     camera->SetFov(85);
 
     //static PODVector<Node*> dynamicLights;
@@ -471,14 +471,14 @@ static void CreateScene()
         plight->SetCastShadows(false);
         //plight->SetShadowIntensity(0.5f);
 
+        // vertex lighting is far cheaper and works pretty well for Quake2 geometry
+        //plight->SetPerVertex(true);
+
         dynamicLights.Push(pNode);
 
         pNode->SetEnabled(false);
 
     }
-
-
-
 
     // Set an initial position for the camera scene node above the plane
     cameraNode_->SetPosition(Vector3(128 * _scale,41* _scale,-320* _scale));
@@ -773,7 +773,7 @@ void	R_RenderFrame (refdef_t *fd)
                 Material* material = aliasModel->GetMaterial(0);
                 material->SetTexture(TU_DIFFUSE, model->skins[ent->skinnum]->texture);
                 material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
-                material->SetShaderParameter("MatDiffColor", Vector4(color[0], color[1], color[2], alpha));
+                material->SetShaderParameter("MatDiffColor", Vector4(1, 1, 1, alpha));
                 material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], alpha));
             }
             else
@@ -796,7 +796,7 @@ void	R_RenderFrame (refdef_t *fd)
                 Material* material = amodel->GetMaterial(0);
                 material->SetTexture(TU_DIFFUSE, model->skins[ent->skinnum]->texture);
                 material->SetTexture(TU_EMISSIVE, model->skins[ent->skinnum]->texture);
-                material->SetShaderParameter("MatDiffColor", Vector4(color[0], color[1], color[2], alpha));
+                material->SetShaderParameter("MatDiffColor", Vector4(1, 1, 1, alpha));
                 material->SetShaderParameter("MatEmissiveColor", Vector4(color[0], color[1], color[2], alpha));
             }
 
