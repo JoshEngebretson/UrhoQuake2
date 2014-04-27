@@ -66,6 +66,8 @@ static float _scale = .1f;
 
 static BillboardSet* billboardObject;
 
+static bool _castShadows = true;
+
 
 static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surface)
 {
@@ -274,7 +276,7 @@ static Node* EmitBrushModel(const HashMap<Material*, PODVector<msurface_t*> >& m
 
     Node* worldNode = scene_->CreateChild("World");
     StaticModel* worldObject = worldNode->CreateComponent<StaticModel>();
-    worldObject->SetCastShadows(false);
+    worldObject->SetCastShadows(_castShadows);
     worldObject->SetModel(world);
     for (unsigned i = 0; i < materials.Size(); i++)
     {
@@ -481,7 +483,7 @@ static void CreateScene()
         plight->SetRange(0.0f);
         plight->SetColor(Color(1, 1, 1));
         plight->SetBrightness(1);
-        plight->SetCastShadows(false);
+        plight->SetCastShadows(_castShadows);
         //plight->SetShadowIntensity(0.5f);
 
         // vertex lighting is far cheaper and works pretty well for Quake2 geometry
@@ -747,14 +749,22 @@ void	R_RenderFrame (refdef_t *fd)
                 if (!amodel->GetNumMorphs())
                 {
                     StaticModel* aliasModel = node->CreateComponent<StaticModel>();
-                    aliasModel->SetCastShadows(false);
+                    if (ent->flags & RF_WEAPONMODEL || ent->flags & RF_VIEWERMODEL)
+                        aliasModel->SetCastShadows(false);
+                    else
+                        aliasModel->SetCastShadows(_castShadows);
+
                     aliasModel->SetModel(amodel);
                     aliasModel->SetMaterial(0, model->material->Clone());
                 }
                 else
                 {
                     AnimatedModel* aliasModel = node->CreateComponent<AnimatedModel>();
-                    aliasModel->SetCastShadows(false);
+                    if (ent->flags & RF_WEAPONMODEL || ent->flags & RF_VIEWERMODEL)
+                        aliasModel->SetCastShadows(false);
+                    else
+                        aliasModel->SetCastShadows(_castShadows);
+
                     aliasModel->SetModel(amodel);
                     aliasModel->SetMaterial(0, model->material->Clone());
                 }

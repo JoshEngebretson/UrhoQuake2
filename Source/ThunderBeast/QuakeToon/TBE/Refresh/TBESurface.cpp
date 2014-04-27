@@ -77,7 +77,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 
     lightstyle_t	*style;
 
-    float lightscale = 2.0f;
+    float lightscale = 2.2f;
 
     int monolightmap;
 

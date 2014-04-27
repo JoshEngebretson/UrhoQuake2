@@ -7,6 +7,9 @@
 #include "Engine.h"
 #include "DebugHud.h"
 #include "Input.h"
+#include "Texture2D.h"
+#include "UI.h"
+#include "Sprite.h"
 #include "TBEClientApp.h"
 
 extern "C"
@@ -52,14 +55,16 @@ void TBEClientApp::Start()
     // Create debug HUD.
     DebugHud* debugHud = engine_->CreateDebugHud();
     debugHud->SetDefaultStyle(xmlFile);
-    //debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+    debugHud->Toggle(DEBUGHUD_SHOW_ALL);
+
+    CreateLogo();
 
     // todo, define argc and argv as Urho3D also wants command line args
-    int argc = 5;
-    const char *argv[] = {"quake", "+map", "demo1", "+notarget", "+god"};
+    //int argc = 5;
+    //const char *argv[] = {"quake", "+map", "demo1", "+notarget", "+god"};
 
-    //int argc = 3;
-    //const char *argv[] = {"quake", "+demomap", "q2demo1.dm2"};
+    int argc = 3;
+    const char *argv[] = {"quake", "+demomap", "q2demo1.dm2"};
 
     Qcommon_Init (argc, (char**) argv);
 
@@ -67,6 +72,43 @@ void TBEClientApp::Start()
     // like the ScreenMode event sent by the Graphics subsystem when opening the application window. To catch those as well we
     // could subscribe in the constructor instead.
     SubscribeToEvents();
+}
+
+void TBEClientApp::CreateLogo()
+{
+    // Get logo texture
+   ResourceCache* cache = GetSubsystem<ResourceCache>();
+   Texture2D* logoTexture = cache->GetResource<Texture2D>("Textures/LogoLarge.png");
+   if (!logoTexture)
+       return;
+
+   // Create logo sprite and add to the UI layout
+   UI* ui = GetSubsystem<UI>();
+   logoSprite_ = ui->GetRoot()->CreateChild<Sprite>();
+
+   // Set logo sprite texture
+   logoSprite_->SetTexture(logoTexture);
+
+   int textureWidth = logoTexture->GetWidth();
+   int textureHeight = logoTexture->GetHeight();
+
+   // Set logo sprite scale
+   logoSprite_->SetScale(256.0f / textureWidth);
+
+   // Set logo sprite size
+   logoSprite_->SetSize(textureWidth, textureHeight);
+
+   // Set logo sprite hot spot
+   logoSprite_->SetHotSpot(0, textureHeight);
+
+   // Set logo sprite alignment
+   logoSprite_->SetAlignment(HA_LEFT, VA_BOTTOM);
+
+   // Make logo not fully opaque to show the scene underneath
+   logoSprite_->SetOpacity(0.75f);
+
+   // Set a low priority for the logo so that other UI elements can be drawn on top
+   logoSprite_->SetPriority(-100);
 }
 
 void TBEClientApp::SubscribeToEvents()
