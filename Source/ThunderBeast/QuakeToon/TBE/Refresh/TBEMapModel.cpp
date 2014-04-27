@@ -25,6 +25,8 @@
 #include "RenderPath.h"
 #include "XMLFile.h"
 #include "DebugRenderer.h"
+#include "BillboardSet.h"
+#include "SkyBox.h"
 
 #include "TBEMapModel.h"
 #include "TBEAliasModel.h"
@@ -61,6 +63,9 @@ static HashMap<String, SharedPtr<Material> > materialLookup;
 static HashMap<Material*, PODVector<msurface_t*> > surfaceMap;
 
 static float _scale = .1f;
+
+static BillboardSet* billboardObject;
+
 
 static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surface)
 {
@@ -491,6 +496,34 @@ static void CreateScene()
     // Set an initial position for the camera scene node above the plane
     cameraNode_->SetPosition(Vector3(128 * _scale,41* _scale,-320* _scale));
 
+    Node* skyNode = scene_->CreateChild("Sky");
+    skyNode->SetScale(500.0f); // The scale actually does not matter
+    Skybox* skybox = skyNode->CreateComponent<Skybox>();
+    skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
+    skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
+
+
+
+    Node* smokeNode = scene_->CreateChild("Particles");
+    smokeNode->SetPosition(Vector3(0, 0, 0));
+
+    billboardObject = smokeNode->CreateComponent<BillboardSet>();
+    billboardObject->SetNumBillboards(MAX_PARTICLES);
+    billboardObject->SetMaterial(cache->GetResource<Material>("Materials/Smoke.xml"));
+    billboardObject->SetSorted(false);
+
+    for (unsigned j = 0; j < MAX_PARTICLES; ++j)
+    {
+        Billboard* bb = billboardObject->GetBillboard(j);
+        bb->size_ = Vector2(0.2f, 0.2f);
+        bb->rotation_ = Random() * 360.0f;
+        bb->enabled_ = false;
+    }
+
+    // After modifying the billboards, they need to be "commited" so that the BillboardSet updates its internals
+    billboardObject->Commit();
+
+
     //cameraNode_->SetPosition(Vector3(0, 0, -2000));
 
     Renderer* renderer = context->GetSubsystem<Renderer>();
@@ -875,6 +908,42 @@ void	R_RenderFrame (refdef_t *fd)
 
     cameraNode_->SetPosition(Vector3(fd->vieworg[0] *_scale, fd->vieworg[2] *_scale, fd->vieworg[1] *_scale));
     cameraNode_->SetRotation(q);
+
+    for (int j = 0; j < MAX_PARTICLES; j++)
+    {
+
+    }
+
+    bool anychanged = false;
+    extern unsigned	d_8to24table[256];
+    for (int j = 0; j < MAX_PARTICLES; j++)
+    {
+        Billboard* bb = billboardObject->GetBillboard(j);
+
+        if (j >= fd->num_particles)
+        {
+            if (bb->enabled_)
+            {
+                bb->enabled_ = false;
+                anychanged = true;
+            }
+
+            continue;
+        }
+
+        particle_t* p = &fd->particles[j];
+        bb->position_ = Vector3(p->origin[0] * _scale, p->origin[2] * _scale, p->origin[1] * _scale);
+        unsigned char color[4];
+        *(int *)color = d_8to24table[p->color];
+        bb->color_ = Color(float(color[0]) / 255.0f, float(color[1]) / 255.0f, float(color[2]) / 255.0f, p->alpha * .8f);
+        bb->enabled_ = true;
+        anychanged = true;
+    }
+
+    if (anychanged)
+        billboardObject->Commit();
+
+
 }
 }
 
