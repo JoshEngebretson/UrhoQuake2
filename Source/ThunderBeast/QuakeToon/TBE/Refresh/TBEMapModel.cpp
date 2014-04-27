@@ -22,6 +22,8 @@
 #include "Camera.h"
 #include "Zone.h"
 #include "Renderer.h"
+#include "RenderPath.h"
+#include "XMLFile.h"
 #include "DebugRenderer.h"
 
 #include "TBEMapModel.h"
@@ -453,7 +455,7 @@ static void CreateScene()
     cameraNode_ = scene_->CreateChild("Camera");
     Camera* camera = cameraNode_->CreateComponent<Camera>();
     camera->SetFarClip(65000.0f);
-    camera->SetFov(75);
+    camera->SetFov(85);
 
     //static PODVector<Node*> dynamicLights;
 
@@ -491,13 +493,15 @@ static void CreateScene()
     // use, but now we just use full screen and default render path configured in the engine command line options
     SharedPtr<Viewport> viewport(new Viewport(context, scene_, cameraNode_->GetComponent<Camera>()));
 
-    //SharedPtr<RenderPath> effectRenderPath = viewport->GetRenderPath()->Clone();
+    /*
+    SharedPtr<RenderPath> effectRenderPath = viewport->GetRenderPath()->Clone();
 
-    //effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/Bloom.xml"));
+    effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/Blur.xml"));
     // Make the bloom mixing parameter more pronounced
     //effectRenderPath->SetShaderParameter("BloomMix", Vector2(1.0f, 1.5f));
     //effectRenderPath->SetShaderParameter("BloomThreshold",.2f);
-    //viewport->SetRenderPath(effectRenderPath);
+    viewport->SetRenderPath(effectRenderPath);
+    */
 
     renderer->SetViewport(0, viewport);
 
@@ -797,7 +801,7 @@ void	R_RenderFrame (refdef_t *fd)
             }
 
             // I am not sure on the pitch and roll signs here, yaw is correct
-            Quaternion q(-ent->angles[0], -ent->angles[1], ent->angles[2]);
+            Quaternion q(-ent->angles[2], -ent->angles[1], -ent->angles[0]);
             node->SetRotation(q);
 
             Vector3 curPos(ent->origin[0] * _scale, ent->origin[2] * _scale, ent->origin[1] * _scale);
