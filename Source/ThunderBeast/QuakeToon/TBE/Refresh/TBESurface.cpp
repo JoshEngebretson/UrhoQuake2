@@ -43,6 +43,8 @@ static void		LM_InitBlock( void );
 static void		LM_UploadBlock( qboolean dynamic );
 static qboolean	LM_AllocBlock (int w, int h, int *x, int *y);
 
+extern refdef_t r_newrefdef;
+
 /*
 ** R_SetCacheState
 */
@@ -52,7 +54,7 @@ void R_SetCacheState( msurface_t *surf )
 
     for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ; maps++)
     {
-        surf->cached_light[maps] = 1.0f;//r_newrefdef.lightstyles[surf->styles[maps]].white;
+        surf->cached_light[maps] = r_newrefdef.lightstyles[surf->styles[maps]].white;
     }
 }
 
@@ -73,7 +75,9 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
     int			nummaps;
     float		*bl;
 
-    //lightstyle_t	*style;
+    lightstyle_t	*style;
+
+    float lightscale = 2.0f;
 
     int monolightmap;
 
@@ -96,7 +100,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
         for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ;
              maps++)
         {
-            //style = &r_newrefdef.lightstyles[surf->styles[maps]];
+            style = &r_newrefdef.lightstyles[surf->styles[maps]];
         }
 
         goto store;
@@ -121,7 +125,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
             bl = s_blocklights;
 
             for (i=0 ; i<3 ; i++)
-                scale[i] = 2.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
+                scale[i] = lightscale * r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
 
             if ( scale[0] == 1.0F &&
                  scale[1] == 1.0F &&
@@ -158,7 +162,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
             bl = s_blocklights;
 
             for (i=0 ; i<3 ; i++)
-                scale[i] = 2.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
+                scale[i] = lightscale * r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
 
             if ( scale[0] == 1.0F &&
                  scale[1] == 1.0F &&
@@ -183,10 +187,6 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
             lightmap += size*3;		// skip to next lightmap
         }
     }
-
-// add all the dynamic lights
-    //if (surf->dlightframe == r_framecount)
-//        R_AddDynamicLights (surf);
 
 // put into texture format
 store:
@@ -553,6 +553,23 @@ void GL_CreateSurfaceLightmap (msurface_t *surf)
 
 void GL_BeginBuildingLightmaps (model_t *m)
 {
+    static lightstyle_t	lightstyles[MAX_LIGHTSTYLES];
+    int				i;
+
+    /*
+    ** setup the base lightstyles so the lightmaps won't have to be regenerated
+    ** the first time they're seen
+    */
+    for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
+    {
+        lightstyles[i].rgb[0] = 1;
+        lightstyles[i].rgb[1] = 1;
+        lightstyles[i].rgb[2] = 1;
+        lightstyles[i].white = 3;
+    }
+
+    r_newrefdef.lightstyles = lightstyles;
+
     memset( gl_lms.allocated, 0, sizeof(gl_lms.allocated) );
     gl_lms.current_lightmap_texture = 0;
 }
@@ -821,7 +838,7 @@ int RecursiveLightPoint (mnode_t *node, vec3_t start, vec3_t end)
                     maps++)
             {
                 for (i=0 ; i<3 ; i++)
-                    scale[i] = 1.0f;//gl_modulate->value*r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
+                    scale[i] = r_newrefdef.lightstyles[surf->styles[maps]].rgb[i];
 
                 pointcolor[0] += lightmap[0] * scale[0] * (1.0/255);
                 pointcolor[1] += lightmap[1] * scale[1] * (1.0/255);

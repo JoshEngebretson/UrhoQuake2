@@ -68,7 +68,7 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
     {
         ResourceCache* cache = context->GetSubsystem<ResourceCache>();
 
-        if (name.Find("bluwter") != String::NPOS)
+        if (name.Find("bluwter") != String::NPOS || name.Find("sewer1") != String::NPOS)
         {
             Texture* texture = surface->texinfo->image->texture;
             SharedPtr<Material> material = SharedPtr<Material>(cache->GetResource<Material>("Materials/Water.xml"));
@@ -76,7 +76,16 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
             material->SetName(name);
             material->SetShaderParameter("NoiseTiling", .002f);
             material->SetShaderParameter("NoiseStrength", .04f);
-            material->SetShaderParameter("WaterTint", Vector3(0.7f,0.7f,1.0f));
+
+
+            if (name.Find("bluwter") != String::NPOS)
+                material->SetShaderParameter("WaterTint", Vector3(0.7f,0.7f,1.0f));
+            else
+            {
+                // seem to have issue with 2x water tints? setting green here changes blu water
+                material->SetShaderParameter("WaterTint", Vector3(0.7f,0.7f,1.0f));
+            }
+
             materialLookup.Insert(MakePair(name, material));
         }
         else
@@ -533,12 +542,19 @@ static image_t *R_TextureAnimation (int frame, mtexinfo_t *tex)
 }
 
 
+refdef_t r_newrefdef;
+
+void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
+void R_SetCacheState( msurface_t *surf );
+
 extern "C"
 {
 void	R_RenderFrame (refdef_t *fd)
 {
     if (!cameraNode_)
         return;
+
+    r_newrefdef = *fd;
 
     // optimize this, probably doing too much work
     for (unsigned i = 0; i < worldNodes.Size(); i++)
@@ -594,14 +610,47 @@ void	R_RenderFrame (refdef_t *fd)
             nodes[i]->SetEnabled(false);
     }
 
-    // world animations
+    // world animated lights, this only does animation on the world model
+    // and not inline brush models
+    // and it is currenly animating all textures whether they are in visible
+    // or not
     msurface_t* surf = r_worldmodel->surfaces + r_worldmodel->firstmodelsurface;
     for (int j = 0; j < r_worldmodel->nummodelsurfaces; j++)
     {
+        if ( !(surf->texinfo->flags & (SURF_SKY|SURF_TRANS33|SURF_TRANS66|SURF_WARP ) ) )
+        {
+            for ( int maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++ )
+            {
+                if ( fd->lightstyles[surf->styles[maps]].white != surf->cached_light[maps] )
+                {
+                    unsigned	temp[128*128];
+                    int			smax, tmax;
+
+                    if ( surf->styles[maps] >= 32 || surf->styles[maps] == 0 )
+                    {
+                        smax = (surf->extents[0]>>4)+1;
+                        tmax = (surf->extents[1]>>4)+1;
+
+                        R_BuildLightMap( surf, (byte *)temp, smax*4 );
+                        R_SetCacheState( surf );
+
+                        Texture2D* lightmap = lightmapTextures[surf->lightmaptexturenum];
+
+                        lightmap->SetData(0, surf->light_s, surf->light_t, smax, tmax, temp);
+
+                        //static int update = 0;
+                        //printf("%i Updating Lightmap %i\n", update++, surf->lightmaptexturenum);
+
+                    }
+                }
+            }
+        }
+
         if (surf->material && surf->texinfo->numframes)
         {
             image_t* image = R_TextureAnimation(int(TBESystem::GetMilliseconds()/1000.0f), surf->texinfo);
-            surf->material->SetTexture(TU_DIFFUSE, image->texture);
+            if (image->texture)
+                surf->material->SetTexture(TU_DIFFUSE, image->texture);
         }
 
         surf++;
