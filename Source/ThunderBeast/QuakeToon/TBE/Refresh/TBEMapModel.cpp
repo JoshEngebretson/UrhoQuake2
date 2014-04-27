@@ -103,8 +103,13 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
             }
             else
             {
-                technique = cache->GetResource<Technique>("Techniques/DiffAlpha.xml");
+                if (lightmap != -1)
+                    technique = cache->GetResource<Technique>("Techniques/DiffLightMapAlpha.xml");
+                else
+                    technique = cache->GetResource<Technique>("Techniques/DiffEmissiveAlpha.xml");
+
                 material->SetShaderParameter("MatDiffColor", Vector4(1,1,1, surface->texinfo->flags & SURF_TRANS33 ? .33f : .66f));
+
             }
 
             material->SetNumTechniques(1);
@@ -112,13 +117,16 @@ static Material* LoadMaterial(int lightmap, const String& name, msurface_t* surf
             material->SetName(name);
             material->SetTexture(TU_DIFFUSE, texture);
 
-            if (lightmap < lightmapTextures.Size())
+            if (lightmap != -1 && lightmap < lightmapTextures.Size())
                 material->SetTexture(TU_EMISSIVE, lightmapTextures[lightmap]);
             else
             {
-                // I believe this is in the case of moving brush models
-                // just set here, renders wrong but doesn't flicker
-                material->SetTexture(TU_EMISSIVE, NULL);
+
+                // doesn't have a lightmap, transparency, etc
+                // note from quake 2: the textures are prescaled up for a better lighting range, so scale it back down
+                material->SetTexture(TU_EMISSIVE, texture);
+                Vector4 intensity(.2f,.2f,.2f, surface->texinfo->flags & SURF_TRANS33 ? .33f : .66f);
+                material->SetShaderParameter("MatEmissiveColor", intensity);
             }
 
             materialLookup.Insert(MakePair(name, material));
